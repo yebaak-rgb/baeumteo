@@ -427,3 +427,22 @@ details.lib summary{cursor:pointer;font-weight:800;font-size:18px;color:var(--he
 .stampboard.wide .reward{border:0;margin:0;padding:0;min-width:260px;flex:0 1 380px}
 .stampboard.wide .days{gap:14px}
 .stampboard.wide .day .dot{max-width:72px}
+
+/* 첫 화면: 왼쪽(배너+오늘 할 일) / 오른쪽(체크리스트 세로로 쭉) */
+.home-grid{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(300px,1fr);gap:20px;align-items:start}
+.home-main{min-width:0}
+.home-side .side-checks{min-height:100%}
+.side-checks .checks{max-height:none;overflow:visible}
+.tcards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.tcard{border:1px solid var(--card-line);border-radius:14px;background:var(--card);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--sh1);min-width:0}
+.tcard .tc-head{padding:9px 10px;font-weight:800;font-size:15px;color:var(--on-subj);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tcard .tc-body{padding:12px 12px 6px;display:grid;gap:4px;text-align:center;flex:1;align-content:start}
+.tcard .ttl{font-size:16px;color:var(--heading);line-height:1.35;word-break:keep-all}
+.tcard .meta{font-size:12px;color:var(--muted)}
+.tcard .book{font-size:11px;font-weight:700;color:var(--brand-ink);background:var(--pill);border-radius:20px;padding:2px 8px;justify-self:center}
+.tcard .tbtn{margin:8px 10px 12px;width:auto;max-width:none;min-height:42px}
+.tcard.done{opacity:.95}
+@media (max-width:1100px){ .tcards{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:860px){ .home-grid{grid-template-columns:minmax(0,1fr)} }
+@media (max-width:1100px) and (min-width:861px){ .home-grid .today-banner{grid-template-columns:1fr} .home-grid .hero-art{display:none} }
+.addrow .btn{white-space:nowrap;flex:none}

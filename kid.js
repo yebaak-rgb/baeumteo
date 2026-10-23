@@ -165,34 +165,25 @@
       return '<div class="day' + (c ? ' done' : '') + (isT ? ' today' : '') + '"><span class="dot">' + (c ? stampSvg('', c >= 4 ? '참|잘했어요' : '잘|했어요') : (isT ? '오늘' : '')) + '</span><span class="num">' + n + ' ' + (dd.getMonth() + 1) + '/' + dd.getDate() + '</span></div>';
     }).join('');
     const goal = st.family.reward_goal || 30, stamps = st.data.stamps || 0;
-    let h = '<div class="section"><div class="wrap"><div class="hero-grid"><div class="today-banner">' + stars(30) + '<div style="min-width:0"><span class="eyebrow">오늘의 학습</span>' +
+    // 왼쪽: 배너 + 오늘 할 일 카드(작게) / 오른쪽: 체크리스트(길어지면 아래로 쭉)
+    const cards = list.map(it => {
+      const sj = S[it.subject] || S.link, i = st.items.indexOf(it);
+      const ttl = it.title, meta = (it.kind === 'link' || it.kind === 'mat') ? '엄마가 고른 강의' : itemMeta(it);
+      return '<div class="tcard' + (it.done ? ' done' : '') + '"><div class="tc-head" style="background:' + sj.col + '">' + sj.emoji + ' ' + esc(sj.short === '강의' ? '강의' : sj.name) + '</div>' +
+        '<div class="tc-body">' + (it.kind === 'book' ? '<span class="book">📗 ' + esc(it.book.title) + ' · ' + it.no + '강</span>' : '') + '<b class="ttl">' + esc(ttl) + '</b><span class="meta">' + esc(meta) + '</span></div>' +
+        (it.done ? '<button class="tbtn done" data-open="' + i + '">✓ 완료' + (it.doneLog && it.doneLog.total ? ' ' + it.doneLog.score + '/' + it.doneLog.total : '') + '</button>'
+          : '<button class="tbtn go" data-open="' + i + '">' + (it.watched ? '이어하기' : '시작하기') + '</button>') + '</div>';
+    }).join('');
+    let h = '<div class="section"><div class="wrap"><div class="home-grid"><div class="home-main">' +
+      '<div class="today-banner">' + stars(30) + '<div style="min-width:0"><span class="eyebrow">오늘의 학습</span>' +
       '<h1>' + esc(k.name) + ', ' + (allDone ? '오늘 학습 끝! 정말 멋져요' : list.length ? '오늘은 ' + list.length + '과목이에요' : '오늘은 쉬는 날이에요') + '</h1>' +
       '<p>' + (allDone ? '내일도 이렇게 차근차근 해 봐요.' : list.length ? '다 끝내면 도장판에 도장이 쾅! 찍혀요.' : '과목별 공부에서 하고 싶은 걸 골라도 좋아요.') + (mins ? ' <span class="num" style="opacity:.75">· 약 ' + mins + '분</span>' : '') + '</p>' +
       '<div class="segs">' + segs + '</div>' +
       (next ? '<button class="btn" data-open="' + st.items.indexOf(next) + '">' + (doneN ? '이어서 하기' : '시작하기') + ' · ' + esc((S[next.subject] || S.link).name) + ' →</button>' : '<button class="btn ghost" data-go="notes">오답노트 다시 풀기</button>') +
       '</div>' + heroArt() + '</div>' +
-      sideChecks() + '</div></div></div>';
-    // 과목 표
-    const cols = ORDER.map(s => {
-      const it = subjItem(s), on = !!it, sj = S[s];
-      let ttl, meta, btn, state;
-      if (on) {
-        ttl = it.title; meta = itemMeta(it);
-        btn = it.done ? '<button class="tbtn done" data-open="' + st.items.indexOf(it) + '">✓ 완료' + (it.doneLog && it.doneLog.total ? ' ' + it.doneLog.score + '/' + it.doneLog.total : '') + '</button>' : '<button class="tbtn go" data-open="' + st.items.indexOf(it) + '">' + (it.watched ? '이어하기' : '시작하기') + '</button>';
-        state = it.done ? '도장 받았어요' : '오늘 할 일';
-      } else {
-        const lv = X.levelOf(k, s), nx = s === 'calc' ? null : X.nextItem(s, lv, X.semester(), st.done, s === 'soc' ? 'history' : null);
-        ttl = s === 'calc' ? X.autoCalcTopic(lv, st.day, X.semester()).name : (nx ? nx.title : '-'); meta = s === 'calc' ? '10문제 · 자동 출제' : '다음 진도';
-        btn = '<button class="tbtn" data-free="' + s + '">해보기</button>'; state = '오늘은 쉬는 과목';
-      }
-      return '<div class="tcol' + (on ? '' : ' off') + '"><div class="thead" style="background:' + sj.col + '">' + sj.emoji + ' ' + esc(sj.name) + '</div>' +
-        '<div class="tbody">' + (on && it.kind === 'book' ? '<span class="book">📗 ' + esc(it.book.title) + ' · ' + it.no + '강</span>' : '') + '<span class="ttl">' + esc(ttl) + '</span><span class="meta">' + esc(meta) + '</span></div>' +
-        '<div class="tfoot">' + btn + '<span class="state">' + state + '</span></div></div>';
-    }).join('');
-    h += '<div class="section"><div class="wrap"><div class="sec-head"><h2>오늘 할 일</h2><button class="more" data-go="subjects">과목별 공부 ›</button></div><div class="ttable">' + cols + '</div></div></div>';
-    // 엄마가 고른 강의
-    const extra = st.items.filter(i => i.kind === 'link' || i.kind === 'mat');
-    if (extra.length) h += '<div class="section"><div class="wrap"><div class="sec-head"><h2>엄마가 고른 강의</h2></div><div class="ulist">' + extra.map(it => '<button class="urow" data-open="' + st.items.indexOf(it) + '"><span class="no">🎬</span><span class="t"><b>' + esc(it.title) + '</b><small>' + (it.done ? '다 봤어요' : '눌러서 시작') + '</small></span>' + (it.done ? '<span class="ok">✓ 완료</span>' : '<span class="ok" style="color:var(--brand)">시작 →</span>') + '</button>').join('') + '</div></div></div>';
+      '<div class="sec-head" style="margin-top:22px"><h2>오늘 할 일 <span class="num" style="font-size:16px;color:var(--brand)">' + doneN + ' / ' + list.length + '</span></h2><button class="more" data-go="subjects">다른 과목도 해보기 ›</button></div>' +
+      (list.length ? '<div class="tcards">' + cards + '</div>' : '<div class="empty">오늘은 정해진 공부가 없어요 🌱</div>') +
+      '</div><div class="home-side">' + sideChecks() + '</div></div></div></div>';
     // 이번 주 도장판 (체크리스트 아래 자리 → 오늘 할 일 아래)
     h += '<div class="section"><div class="wrap"><div class="stampboard wide"><div class="sb-head"><div><h3>이번 주 도장판</h3><div class="streak num">' + (streak ? '연속 ' + streak + '일째 공부 중 🔥' : '오늘 첫 도장을 찍어 봐요') + '</div></div>' +
       '<div class="reward">🏅 칭찬 도장 <b class="num">' + stamps + '</b> / ' + goal + '<div class="tr"><i style="width:' + Math.min(100, stamps / goal * 100) + '%"></i></div><div style="margin-top:6px">' + esc(st.family.reward_text || '') + '</div></div></div><div class="days">' + days + '</div></div></div></div>';
