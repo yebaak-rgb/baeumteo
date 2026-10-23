@@ -231,7 +231,7 @@ a{color:var(--primary)}
 .stat small{color:var(--muted);font-size:13px}
 
 /* 프로필 선택/가족코드 */
-.gate{min-height:100%;display:grid;place-items:center;padding:24px;background:var(--night);position:relative;overflow:hidden}
+.gate{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;background:var(--night);position:relative;overflow:hidden}
 .gate .box{background:#fff;border-radius:var(--r-xl);padding:40px;width:min(760px,100%);text-align:center;box-shadow:var(--sh2);position:relative}
 .gate h1{font-size:36px;letter-spacing:-1px;margin:8px 0}
 .gate p{color:var(--muted);margin:0 0 24px}
