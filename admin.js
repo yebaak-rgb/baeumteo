@@ -66,8 +66,7 @@
       '<div class="sec-head" id="plan"><h2>엄마 관리 · ' + esc(k.name) + '</h2><span style="font-size:13px;color:var(--muted)">엄마 계정으로만 바꿀 수 있어요 · 위에서 아이를 바꿔요</span></div>' +
       '<div class="flow"><div><em>1 · EBS</em><b>강의는 링크·유튜브로</b><span>교재 강 주소만 붙이면 끝</span></div><div><em>2 · 교재</em><b>하루 1강 자동 진도</b><span>다 하면 다음 날 다음 강</span></div>' +
       '<div><em>3 · 자동</em><b>연산·단어 자동 출제</b><span>엄마 손이 안 가요</span></div><div><em>4 · 아이</em><b>듣기 → 정리 → 교재 → 풀기</b><span>채점·오답노트 자동</span></div><div><em>5 · 엄마</em><b>리포트 3분 확인</b><span>도장·칭찬으로 마무리</span></div></div>' +
-      '<div class="pgrid" style="margin-top:20px"><div>' + cardSched(k) + cardTasks(k) + cardBooks(k) + '</div><div>' + cardReport() + cardRecent(k) + cardRoutine() + '</div></div>' +
-      '<div class="pgrid" style="margin-top:20px" id="make"><div>' + cardMake(k) + '</div><div>' + cardBulk(k) + '</div></div>' +
+      '<div class="pgrid" style="margin-top:20px"><div>' + cardSched(k) + cardTasks(k) + cardBooks(k) + '<div id="make">' + cardMake(k) + '</div></div><div>' + cardReport() + cardRecent(k) + cardRoutine() + cardBulk(k) + '</div></div>' +
       '<div class="card" style="margin-top:20px" id="lib">' + libSection() + '</div>' +
       '<div class="g2" style="margin-top:20px" id="set">' + cardKids() + cardFamily() + '</div>' +
       '</div></main><footer><div class="wrap"><span>우리집 배움터 · 엄마 관리</span><span>EBS 강의는 링크(공식 유튜브는 퍼가기)로만 연결해요.</span></div></footer>';
@@ -87,7 +86,7 @@
     }).join('');
     const foot = '<tr><th style="text-align:left">예상 시간</th>' + WDS.map(w => { const m = ORDER.reduce((a, s) => { const p = mainPlan(k.id, s); return a + (p && p.active && (p.weekdays || []).includes(w) ? S[s].min : 0); }, 0); return '<td class="num">' + (m ? m + '분' : '-') + '</td>'; }).join('') + '</tr>';
     const extra = st.plans.filter(p => p.kid_id === k.id && p.kind !== 'task' && !ORDER.some(s => mainPlan(k.id, s) === p) && (!p.on_date || p.on_date >= today));
-    return '<div class="card"><h3>주간 편성표</h3><p class="desc">칸을 누르면 그 요일에 넣고 빼요. 매일 짧은 3과목(문해력·연산·영단어) + 요일마다 긴 과목 1개가 기본이에요. 교재를 등록한 과목은 그 교재 진도로 나가요.</p>' +
+    return '<div class="card"><h3>' + esc(k.emoji + ' ' + k.name) + ' 주간 편성표</h3><p class="desc">칸을 누르면 그 요일에 넣고 빼요. 매일 짧은 3과목(문해력·연산·영단어) + 요일마다 긴 과목 1개가 기본이에요. 교재를 등록한 과목은 그 교재 진도로 나가요.</p>' +
       '<div class="scroll-x"><table class="sched"><thead>' + head + '</thead><tbody>' + rows + '</tbody><tfoot>' + foot + '</tfoot></table></div>' +
       (extra.length ? '<div style="margin-top:12px"><b style="font-size:14px">추가 일정</b><div class="tasks" style="margin-top:6px">' + extra.map(p => '<div class="tk"><span class="t">' + (S[p.subject] || S.link).emoji + ' ' + esc(p.title || (X.LIB_MAP[p.ref] ? X.LIB_MAP[p.ref].title : p.ref)) + '</span><small style="color:var(--muted)">' + (p.on_date ? X.fmtDate(p.on_date) : (p.weekdays || []).map(w => X.WD[w]).join('·')) + '</small><button class="mini" data-delplan="' + p.id + '">삭제</button></div>').join('') + '</div></div>' : '') +
       '<div class="row" style="margin-top:12px"><button class="btn small ghost" data-addlink>+ 강의 링크 하나 넣기</button><button class="btn small ghost" data-copysched>다른 아이 편성 복사해 오기</button></div></div>';
@@ -107,7 +106,7 @@
   /* ── 체크리스트 ── */
   function cardTasks(k) {
     const tasks = st.plans.filter(p => p.kid_id === k.id && p.kind === 'task' && (!p.on_date || p.on_date >= today) && !(p.payload && p.payload.by_kid && p.on_date < today));
-    return '<div class="card"><h3>체크리스트 (학원·숙제·문제집)</h3><p class="desc">요일을 누르면 바로 켜고 꺼져요. 아이가 직접 추가한 숙제도 여기 보여요.</p><div class="tasks">' +
+    return '<div class="card"><h3>' + esc(k.emoji + ' ' + k.name) + ' 체크리스트 <small style="font-weight:500;color:var(--muted);font-size:13px">학원·숙제·문제집</small></h3><p class="desc">' + esc(k.name) + '에게만 보이는 할 일이에요. 다른 아이는 맨 위 이름 버튼을 눌러 바꿔요. 요일을 누르면 바로 켜고 꺼져요. 아이가 직접 추가한 숙제도 여기 보여요.</p><div class="tasks">' +
       (tasks.map(p => '<div class="tk"><span class="t">' + esc(p.title) + (p.payload && p.payload.note ? ' <small style="color:var(--muted)">· ' + esc(p.payload.note) + '</small>' : '') + (p.payload && p.payload.by_kid ? ' <small style="color:var(--brand)">· 아이가 추가</small>' : '') + '</span>' +
         (p.on_date ? '<small style="color:var(--muted)">' + X.fmtDate(p.on_date) + '</small>' : '<span class="wd">' + WDS.map(w => '<button data-twd="' + p.id + ':' + w + '" aria-pressed="' + (p.weekdays || []).includes(w) + '">' + X.WD[w] + '</button>').join('') + '</span>') +
         '<button class="mini" data-delplan="' + p.id + '">삭제</button></div>').join('') || '<div class="empty" style="padding:20px">아직 없어요</div>') + '</div>' +
@@ -118,7 +117,7 @@
   /* ── 교재 진도 ── */
   function cardBooks(k) {
     const books = st.books.filter(b => b.kid_id === k.id);
-    return '<div class="card"><h3>교재 진도 <small style="font-weight:500;color:var(--muted);font-size:13px">하루 1강 자동</small></h3><p class="desc">교재를 사면 여기 등록해요. 그 과목은 「강의 듣기 → 핵심 정리 → 교재 쪽 풀기 → 확인 문제」로 하루 1강씩 나가요. 아이가 끝내면 다음 날 다음 강이 열려요.</p><div class="books">' +
+    return '<div class="card"><h3>' + esc(k.emoji + ' ' + k.name) + ' 교재 진도 <small style="font-weight:500;color:var(--muted);font-size:13px">하루 1강 자동</small></h3><p class="desc">교재를 사면 여기 등록해요. 그 과목은 「강의 듣기 → 핵심 정리 → 교재 쪽 풀기 → 확인 문제」로 하루 1강씩 나가요. 아이가 끝내면 다음 날 다음 강이 열려요.</p><div class="books">' +
       (books.map(b => { const pct = Math.round(Math.min(b.current_no - 1, b.total) / b.total * 100);
         return '<div class="bk"><span class="subj-chip" style="background:' + S[b.subject].col + '">' + S[b.subject].emoji + ' ' + S[b.subject].short + '</span><span class="t"><b>' + esc(b.title) + (b.active ? '' : ' (쉬는 중)') + '</b><small class="num">지금 ' + Math.min(b.current_no, b.total) + '강 / 전체 ' + b.total + '강' + (b.current_no > b.total ? ' · 다 끝났어요 🎉' : '') + (b.course_url ? ' · <a href="' + esc(b.course_url) + '" target="_blank">EBS 강좌</a>' : '') + '</small></span>' +
           '<span class="ctl"><button data-bno="' + b.id + ':-1" aria-label="한 강 뒤로">−</button><button data-bno="' + b.id + ':1" aria-label="한 강 앞으로">+</button><button data-bmk="' + b.id + '">강 내용</button><button data-btog="' + b.id + '">' + (b.active ? '쉬기' : '켜기') + '</button><button data-bdel="' + b.id + '">삭제</button></span>' +

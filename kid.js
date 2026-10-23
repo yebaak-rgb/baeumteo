@@ -144,6 +144,14 @@
     if (it.lib && it.lib.subject === 'word') return '단어 ' + (it.lib.words || []).length + '개 · 카드 + 퀴즈';
     return '강의 + 문제 ' + ((it.lib && it.lib.questions) || []).length + '개';
   }
+  function sideChecks() {
+    const tasks = st.items.filter(i => i.kind === 'task'), dn = tasks.filter(t => t.done).length;
+    return '<div class="stampboard side-checks"><div class="row between" style="align-items:baseline"><h3>오늘의 체크리스트</h3><span class="num" style="font-weight:800;color:' + (tasks.length && dn === tasks.length ? 'var(--ok)' : 'var(--brand)') + '">' + dn + ' / ' + tasks.length + '</span></div>' +
+      '<div class="streak">학원·학교 숙제, 문제집도 끝나면 체크!</div><div class="checks">' +
+      tasks.map(it => '<div class="chk' + (it.done ? ' on' : '') + '"><button class="box" data-chk="' + st.items.indexOf(it) + '" aria-label="체크">' + (it.done ? '✓' : '') + '</button><span class="t">' + esc(it.title) + '</span>' + (it.payload.note ? '<span class="who">' + esc(it.payload.note) + '</span>' : '') + (it.byKid ? '<button class="x" data-deltask="' + it.plan + '" aria-label="지우기">✕</button>' : '') + '</div>').join('') +
+      (tasks.length ? '' : '<div class="chk"><span class="t" style="color:var(--muted);font-weight:500">오늘 체크할 일이 없어요</span></div>') + '</div>' +
+      '<div class="addrow"><input id="newtask" maxlength="60" placeholder="받아 온 숙제 적기"><button class="btn small" data-addtask>추가</button></div></div>';
+  }
   function viewToday() {
     const k = st.kid, list = learnItems(), doneN = list.filter(i => i.done).length, allDone = list.length && doneN === list.length;
     const next = list.find(i => !i.done), mins = list.reduce((a, i) => a + (S[i.subject] || S.link).min, 0);
@@ -163,8 +171,7 @@
       '<div class="segs">' + segs + '</div>' +
       (next ? '<button class="btn" data-open="' + st.items.indexOf(next) + '">' + (doneN ? '이어서 하기' : '시작하기') + ' · ' + esc((S[next.subject] || S.link).name) + ' →</button>' : '<button class="btn ghost" data-go="notes">오답노트 다시 풀기</button>') +
       '</div>' + heroArt() + '</div>' +
-      '<div class="stampboard"><h3>이번 주 도장판</h3><div class="streak num">' + (streak ? '연속 ' + streak + '일째 공부 중 🔥' : '오늘 첫 도장을 찍어 봐요') + '</div><div class="days">' + days + '</div>' +
-      '<div class="reward">🏅 칭찬 도장 <b class="num">' + stamps + '</b> / ' + goal + '<div class="tr"><i style="width:' + Math.min(100, stamps / goal * 100) + '%"></i></div><div style="margin-top:6px">' + esc(st.family.reward_text || '') + '</div></div></div></div></div></div>';
+      sideChecks() + '</div></div></div>';
     // 과목 표
     const cols = ORDER.map(s => {
       const it = subjItem(s), on = !!it, sj = S[s];
@@ -186,12 +193,9 @@
     // 엄마가 고른 강의
     const extra = st.items.filter(i => i.kind === 'link' || i.kind === 'mat');
     if (extra.length) h += '<div class="section"><div class="wrap"><div class="sec-head"><h2>엄마가 고른 강의</h2></div><div class="ulist">' + extra.map(it => '<button class="urow" data-open="' + st.items.indexOf(it) + '"><span class="no">🎬</span><span class="t"><b>' + esc(it.title) + '</b><small>' + (it.done ? '다 봤어요' : '눌러서 시작') + '</small></span>' + (it.done ? '<span class="ok">✓ 완료</span>' : '<span class="ok" style="color:var(--brand)">시작 →</span>') + '</button>').join('') + '</div></div></div>';
-    // 체크리스트
-    const tasks = st.items.filter(i => i.kind === 'task');
-    h += '<div class="section"><div class="wrap"><div class="sec-head"><h2>오늘의 체크리스트</h2><span style="color:var(--muted);font-size:14px">학원·학교 숙제, 문제집도 끝나면 체크!</span></div><div class="checks">' +
-      tasks.map(it => '<div class="chk' + (it.done ? ' on' : '') + '"><button class="box" data-chk="' + st.items.indexOf(it) + '" aria-label="체크">' + (it.done ? '✓' : '') + '</button><span class="t">' + esc(it.title) + '</span>' + (it.payload.note ? '<span class="who">' + esc(it.payload.note) + '</span>' : '') + (it.byKid ? '<span class="who">내가 추가</span><button class="x" data-deltask="' + it.plan + '" aria-label="지우기">✕</button>' : '') + '</div>').join('') +
-      (tasks.length ? '' : '<div class="chk"><span class="t" style="color:var(--muted);font-weight:500">오늘 체크할 일이 없어요</span></div>') +
-      '<div class="addrow"><input id="newtask" maxlength="60" placeholder="선생님이 내 준 숙제를 직접 적어도 돼요"><button class="btn small" data-addtask>추가</button></div></div></div></div>';
+    // 이번 주 도장판 (체크리스트 아래 자리 → 오늘 할 일 아래)
+    h += '<div class="section"><div class="wrap"><div class="stampboard wide"><div class="sb-head"><div><h3>이번 주 도장판</h3><div class="streak num">' + (streak ? '연속 ' + streak + '일째 공부 중 🔥' : '오늘 첫 도장을 찍어 봐요') + '</div></div>' +
+      '<div class="reward">🏅 칭찬 도장 <b class="num">' + stamps + '</b> / ' + goal + '<div class="tr"><i style="width:' + Math.min(100, stamps / goal * 100) + '%"></i></div><div style="margin-top:6px">' + esc(st.family.reward_text || '') + '</div></div></div><div class="days">' + days + '</div></div></div></div>';
     h += '<div class="section soft"><div class="wrap"><div class="sec-head"><h2>더 해보고 싶을 때</h2></div><div class="circles">' +
       circ('📚', 'var(--c-math)', '과목별 공부', '1~6학년 전체 단원', 'data-go="subjects"') + circ('🔁', 'var(--c-word)', '오답노트', '틀린 문제 다시 풀기', 'data-go="notes"') +
       circ('🏅', 'var(--c-read)', '나의 공부방', '도장 달력', 'data-go="room"') + circ('📺', 'var(--c-eng)', 'EBS 초등', '공식 사이트 새 창', 'data-href="' + X.EBS.main + '"') + '</div></div></div>';

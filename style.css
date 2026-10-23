@@ -407,3 +407,23 @@ details.lib summary{cursor:pointer;font-weight:800;font-size:18px;color:var(--he
 }
 @media (max-width:1180px){ .gb-note{display:none} }
 @media (min-width:860px){ .opts{grid-template-columns:repeat(2,minmax(0,1fr))} }
+
+/* 폼 정렬: 라벨 제목·보조설명 한 줄, 입력칸 높이 맞춤 */
+.form label{display:flex;flex-wrap:wrap;align-items:baseline;align-content:flex-start;gap:6px 6px}
+.form label > input,.form label > select,.form label > textarea{flex:1 0 100%}
+.form label small{font-size:12px}
+.f2,.f3{align-items:end}
+#make{margin-top:20px}
+
+/* 체크리스트를 히어로 오른쪽에 */
+.side-checks{display:flex;flex-direction:column;gap:8px;padding:20px}
+.side-checks .checks{border:0;border-radius:0;max-height:260px;overflow-y:auto;margin:0 -6px}
+.side-checks .chk{padding:8px 6px;min-height:52px;gap:12px}
+.side-checks .chk .t{font-size:17px}
+.side-checks .chk .box{width:34px;height:34px}
+.side-checks .addrow{padding:0;border:0;background:none;margin-top:auto}
+.side-checks .addrow input{min-height:44px;font-size:15px}
+.stampboard.wide .sb-head{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.stampboard.wide .reward{border:0;margin:0;padding:0;min-width:260px;flex:0 1 380px}
+.stampboard.wide .days{gap:14px}
+.stampboard.wide .day .dot{max-width:72px}
