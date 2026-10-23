@@ -480,3 +480,8 @@ details.lib summary{cursor:pointer;font-weight:800;font-size:18px;color:var(--he
 .tcard .tc-thumb .cover-art{padding:30px 14px 10px}
 .tcard .tc-thumb .ca-emoji{display:none}
 .tcard .tc-thumb .ca-series{font-size:15px;max-width:100%}
+/* 체크리스트 수정 줄 */
+.tk-edit{background:var(--pill);border-color:var(--brand-line)}
+.tk-edit .inp{flex:1 1 220px;min-width:0;height:42px}
+.tk-edit .inp.n{flex:0 1 160px}.tk-edit .inp.d{flex:0 0 auto;width:auto}
+.tk-edit .btn{white-space:nowrap}

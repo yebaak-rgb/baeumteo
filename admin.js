@@ -112,9 +112,13 @@
   function cardTasks(k) {
     const tasks = st.plans.filter(p => p.kid_id === k.id && p.kind === 'task' && (!p.on_date || p.on_date >= today) && !(p.payload && p.payload.by_kid && p.on_date < today));
     return '<div class="card"><h3>' + esc(k.emoji + ' ' + k.name) + ' 체크리스트 <small style="font-weight:500;color:var(--muted);font-size:13px">학원·숙제·문제집</small></h3><p class="desc">' + esc(k.name) + '에게만 보이는 할 일이에요. 다른 아이는 맨 위 이름 버튼을 눌러 바꿔요. 요일을 누르면 바로 켜고 꺼져요. 아이가 직접 추가한 숙제도 여기 보여요.</p><div class="tasks">' +
-      (tasks.map(p => '<div class="tk"><span class="t">' + esc(p.title) + (p.payload && p.payload.note ? ' <small style="color:var(--muted)">· ' + esc(p.payload.note) + '</small>' : '') + (p.payload && p.payload.by_kid ? ' <small style="color:var(--brand)">· 아이가 추가</small>' : '') + '</span>' +
+      (tasks.map(p => st.editTask === p.id ?
+        // 수정 중인 줄: 할 일·메모(·날짜)를 바로 고쳐요
+        '<form class="tk tk-edit" data-tedit="' + p.id + '"><input class="inp" name="t" maxlength="60" value="' + esc(p.title || '') + '" aria-label="할 일"><input class="inp n" name="n" maxlength="20" value="' + esc((p.payload && p.payload.note) || '') + '" placeholder="메모 (선택)" aria-label="메모">' +
+        (p.on_date ? '<input class="inp d" type="date" name="d" value="' + esc(p.on_date) + '" aria-label="날짜">' : '') + '<button class="btn small" type="submit">저장</button><button class="mini" type="button" data-tcancel>취소</button></form>' :
+        '<div class="tk"><span class="t">' + esc(p.title) + (p.payload && p.payload.note ? ' <small style="color:var(--muted)">· ' + esc(p.payload.note) + '</small>' : '') + (p.payload && p.payload.by_kid ? ' <small style="color:var(--brand)">· 아이가 추가</small>' : '') + '</span>' +
         (p.on_date ? '<small style="color:var(--muted)">' + X.fmtDate(p.on_date) + '</small>' : '<span class="wd">' + WDS.map(w => '<button data-twd="' + p.id + ':' + w + '" aria-pressed="' + (p.weekdays || []).includes(w) + '">' + X.WD[w] + '</button>').join('') + '</span>') +
-        '<button class="mini" data-delplan="' + p.id + '">삭제</button></div>').join('') || '<div class="empty" style="padding:20px">아직 없어요</div>') + '</div>' +
+        '<button class="mini" data-tedit="' + p.id + '">수정</button><button class="mini" data-delplan="' + p.id + '">삭제</button></div>').join('') || '<div class="empty" style="padding:20px">아직 없어요</div>') + '</div>' +
       '<form class="form" id="taskForm" style="margin-top:14px"><div class="f2"><label>할 일<input id="tt" maxlength="60" placeholder="예: 수학학원 숙제 / 연산 문제집 2쪽"></label><label>작은 메모 <small>선택</small><input id="tn" maxlength="20" placeholder="예: 수학학원"></label></div>' +
       '<div class="row"><span class="wd" id="tw">' + WDS.map(w => '<button type="button" data-pick="' + w + '" aria-pressed="' + (w >= 1 && w <= 5) + '">' + X.WD[w] + '</button>').join('') + '</span><span style="color:var(--muted);font-size:13px">또는 날짜</span><input type="date" id="td" class="inp" style="width:auto"><button class="btn small" type="submit">추가</button></div></form></div>';
   }
@@ -314,6 +318,8 @@
       if (d.kid) { st.kidSel = d.kid; st.mk = { book: null, no: null }; render(); return; }
       if (d.cell) { const [s, w] = d.cell.split(':'); t.disabled = true; await toggleCell(s, +w); return; }
       if (d.twd) { const [id, w] = d.twd.split(':'); const p = st.plans.find(x => x.id === id); const set = new Set(p.weekdays || []); set.has(+w) ? set.delete(+w) : set.add(+w); p.weekdays = [...set].sort(); t.setAttribute('aria-pressed', set.has(+w)); await q(db.from('edu_plan').update({ weekdays: p.weekdays }).eq('id', id)); return; }
+      if (d.tedit) { st.editTask = d.tedit; render(); const i = $('[data-tedit="' + d.tedit + '"] input[name=t]'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } return; }
+      if (d.tcancel != null) { st.editTask = null; render(); return; }
       if (d.pick) { t.setAttribute('aria-pressed', t.getAttribute('aria-pressed') !== 'true'); return; }
       if (d.delplan) { if (!confirm('이 일정을 지울까요? (이미 한 기록은 남아요)')) return; await q(db.from('edu_plan').delete().eq('id', d.delplan)); await reload('plans'); return; }
       if (d.addlink != null) { const title = prompt('강의 제목 (예: 만점왕 수학 4-2 7강)'); if (!title) return; const url = prompt('강의 주소 (EBS 또는 유튜브)'); if (!url || !/^https?:\/\//.test(url)) return X.toast('주소를 확인해 주세요'); const day = prompt('언제 볼까요? 날짜 (예: ' + today + ')', today); if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return; await q(db.from('edu_plan').insert({ kid_id: st.kidSel, kind: 'link', subject: 'link', on_date: day, title, payload: { url }, sort: 60 })); await reload('plans'); X.toast('넣었어요'); return; }
@@ -362,6 +368,13 @@
     try {
       if (f.id === 'mkForm') return await saveMake(e);
       if (f.id === 'bulkForm') return await saveBulk(e);
+      if (f.dataset.tedit) {
+        const p = st.plans.find(x => x.id === f.dataset.tedit), title = f.t.value.trim(), note = f.n.value.trim();
+        if (!title) return X.toast('할 일을 적어 주세요');
+        const payload = Object.assign({}, p.payload || {}); if (note) payload.note = note; else delete payload.note;
+        const upd = { title, payload }; if (f.d) { if (!f.d.value) return X.toast('날짜를 골라 주세요'); upd.on_date = f.d.value; }
+        await q(db.from('edu_plan').update(upd).eq('id', p.id)); st.editTask = null; await reload('plans'); X.toast('고쳤어요'); return;
+      }
       if (f.id === 'taskForm') {
         const title = $('#tt').value.trim(); if (!title) return X.toast('할 일을 적어 주세요');
         const date = $('#td').value, wd = $$('#tw [data-pick]').filter(b => b.getAttribute('aria-pressed') === 'true').map(b => +b.dataset.pick);
