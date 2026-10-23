@@ -120,7 +120,7 @@
     if (how === 'pop') return;
     const s = { v: view, b: view === 'subjects' ? Object.assign({}, st.browse) : null, from: view === 'lesson' ? st.view : null };
     try {
-      if (!guarded) { guarded = true; history.replaceState({ guard: 1 }, ''); history.pushState(s, ''); return; }
+      if (!guarded) { history.replaceState(s, ''); return; } // 첫 터치 전에는 기록만 (크롬은 터치 없이 쌓은 기록을 건너뜀)
       const cur = history.state || {};
       const same = cur.v === view && (view !== 'subjects' || JSON.stringify(cur.b) === JSON.stringify(s.b));
       if (same || how === 'replace') { if (cur.from) s.from = cur.from; history.replaceState(s, ''); } else history.pushState(s, '');
@@ -514,6 +514,11 @@
     if (e.target.id === 'ansin' || e.target.id === 'ansin2') { e.preventDefault(); const nb = $('#qNext'); if (nb) return nextQ(); const s = $('[data-submit]'); if (s) s.click(); }
   });
   document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'newtask') { const a = $('[data-addtask]'); if (a) a.click(); } });
+  // 처음 화면을 터치하는 순간 '첫 화면 지킴이'를 깔아요 → 맨 처음 화면에서 뒤로가기를 눌러도 흰 화면으로 안 나가요
+  document.addEventListener('pointerdown', () => {
+    if (guarded || !st.kid || !st.view) return;
+    try { const cur = history.state && history.state.v ? history.state : { v: st.view }; history.replaceState({ guard: 1 }, ''); history.pushState(cur, ''); guarded = true; } catch (e) { }
+  }, true);
   window.addEventListener('popstate', e => {
     if (!st.kid || !st.data) return;
     const s = e.state || {};
