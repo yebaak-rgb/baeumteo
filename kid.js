@@ -106,7 +106,7 @@
     const tabs = [['today', '오늘의 학습'], ['notes', '오답노트' + (rv ? ' <span class="badge num">' + rv + '</span>' : '')], ['subjects', '과목별 공부'], ['room', '나의 공부방']];
     const curG = st.view === 'subjects' ? st.browse.grade : X.gradeOf(k);
     return '<div class="util"><div class="wrap"><a href="' + X.EBS.main + '" target="_blank" rel="noopener">EBS 초등 바로가기 ↗</a><a href="admin.html">엄마 관리</a></div></div>' +
-      '<header class="hdr"><div class="wrap"><button class="logo" data-go="today"><span class="logo-mark">🏡</span><span class="logo-name">우리집 배움터<span class="logo-sub">엄마가 차려 둔 매일 공부</span></span></button>' +
+      '<header class="hdr"><div class="wrap"><button class="logo" data-go="today"><span class="logo-mark">🏡</span><span class="logo-name">' + esc(st.family.family_name || '우리집 배움터') + '<span class="logo-sub">엄마가 차려 둔 매일 공부</span></span></button>' +
       '<div class="datecap"><b class="num">' + X.fmtDate(st.day) + '</b><span class="cnt num">오늘 ' + list.length + '과목</span></div>' +
       '<div class="profiles">' + st.kids.map(x => '<button class="prof" data-prof="' + x.id + '" aria-pressed="' + (x.id === k.id) + '"><span class="avatar" style="background:' + esc(x.color) + '22">' + esc(x.emoji) + '</span>' + esc(x.name) + ' <small class="num">' + X.gradeOf(x) + '학년</small></button>').join('') + '</div></div></header>' +
       '<nav class="mainnav"><div class="wrap">' + tabs.map(t => '<button class="tab" data-go="' + t[0] + '"' + ((st.view === t[0] || (st.view === 'lesson' && t[0] === 'today')) ? ' aria-current="page"' : '') + '>' + t[1] + '</button>').join('') +

@@ -21,11 +21,11 @@
   }
   function login(msg) {
     // 엄마 계정(yeba.ak@gmail.com)은 구글 로그인 계정 → 비밀번호 없이 구글로 로그인
-    app.innerHTML = '<div class="gate"><div class="box" style="max-width:460px"><div style="font-size:52px">🔐</div><h1>엄마 관리</h1><p>' + esc(msg || '엄마 구글 계정(yeba.ak@gmail.com)으로 로그인해 주세요') + '</p>' +
+    app.innerHTML = '<div class="gate"><div class="box" style="max-width:460px"><div style="font-size:52px">🔐</div><h1>엄마 관리</h1><p>' + esc(msg || '등록된 엄마 구글 계정으로 로그인해 주세요') + '</p>' +
       '<button class="btn" id="gg" style="background:#fff;color:#1f1f1f;border:1px solid #dadce0;box-shadow:var(--sh1)"><svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg> 구글로 로그인</button>' +
       '<p style="margin:18px 0 0"><a href="index.html">← 아이 화면</a></p></div></div>';
     $('#gg').onclick = async () => {
-      const { error } = await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname, queryParams: { login_hint: 'yeba.ak@gmail.com', prompt: 'select_account' } } });
+      const { error } = await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname, queryParams: { prompt: 'select_account' } } });
       if (error) login('로그인 실패: ' + error.message);
     };
   }
@@ -33,7 +33,7 @@
     const from = X.ymd(new Date(Date.now() - 30 * 864e5));
     [st.kids, st.plans, st.mats, st.family, st.books, st.logs, st.review, st.done] = await Promise.all([
       q(db.from('edu_kids').select('*').order('sort')), all(() => db.from('edu_plan').select('*').order('sort').order('created_at')),
-      q(db.from('edu_materials').select('*').order('created_at', { ascending: false })), q(db.from('edu_family').select('id,family_name,reward_goal,reward_text,updated_at').eq('id', 1).maybeSingle()),
+      q(db.from('edu_materials').select('*').order('created_at', { ascending: false })), q(db.from('edu_families').select('id,family_name,reward_goal,reward_text,updated_at').maybeSingle()),
       q(db.from('edu_books').select('*').order('created_at')), all(() => db.from('edu_logs').select('*').gte('day', from).order('id', { ascending: false })),
       all(() => db.from('edu_review').select('*').is('cleared_at', null).order('id', { ascending: false })), q(db.rpc('edu_parent_done'))]);
     st.family = st.family || {};
@@ -58,7 +58,7 @@
     const k = kid(); if (!k) { app.innerHTML = '<div class="wrap"><div class="empty">아이를 먼저 등록해 주세요.</div></div>'; return; }
     const nToday = ORDER.filter(s => { const p = mainPlan(k.id, s); return p && appliesOn(p, today); }).length;
     let h = '<div class="util"><div class="wrap"><a href="index.html">아이 화면 ↗</a><button id="lo">로그아웃</button></div></div>' +
-      '<header class="hdr"><div class="wrap"><a class="logo" href="admin.html"><span class="logo-mark">🔒</span><span class="logo-name">엄마 관리<span class="logo-sub">우리집 배움터 운영실</span></span></a>' +
+      '<header class="hdr"><div class="wrap"><a class="logo" href="admin.html"><span class="logo-mark">🔒</span><span class="logo-name">엄마 관리<span class="logo-sub">' + esc(st.family.family_name || '우리집 배움터') + ' 운영실</span></span></a>' +
       '<div class="datecap"><b class="num">' + X.fmtDate(today) + '</b><span class="cnt num">' + esc(k.name) + ' 오늘 ' + nToday + '과목</span></div>' +
       '<div class="profiles">' + st.kids.map(x => '<button class="prof" data-kid="' + x.id + '" aria-pressed="' + (x.id === k.id) + '"><span class="avatar" style="background:' + esc(x.color) + '22">' + esc(x.emoji) + '</span>' + esc(x.name) + ' <small class="num">' + X.gradeOf(x) + '학년</small></button>').join('') + '</div></div></header>' +
       '<nav class="mainnav"><div class="wrap"><a class="tab" href="#plan" aria-current="page">편성·진도</a><a class="tab" href="#report">리포트</a><a class="tab" href="#make">학습 만들기</a><a class="tab" href="#lib">기본 자료함</a><a class="tab" href="#set">설정</a><a class="navtext" href="index.html">아이 화면으로 →</a></div></nav>';
@@ -287,7 +287,7 @@
   /* ── 설정 ── */
   function cardKids() {
     const sy = X.schoolYear();
-    return '<div class="card"><h3>아이 설정</h3><p class="desc">학년은 입학 연도로 매년 3월에 자동으로 올라가요. 과목별로 학년보다 쉽게/어렵게 조정할 수 있어요.</p>' + st.kids.map(k =>
+    return '<div class="card"><div class="row between"><h3>아이 설정</h3><button class="btn small ghost" data-addkid>+ 아이 추가</button></div><p class="desc">학년은 입학 연도로 매년 3월에 자동으로 올라가요. 과목별로 학년보다 쉽게/어렵게 조정할 수 있어요.</p>' + st.kids.map(k =>
       '<div class="kid" data-k="' + k.id + '"><div class="kid-h"><input class="inp" data-f="emoji" value="' + esc(k.emoji) + '" style="width:58px;text-align:center;font-size:22px"><input class="inp" data-f="name" value="' + esc(k.name) + '" style="width:120px;font-weight:700"><input type="color" data-f="color" value="' + esc(k.color) + '" style="width:44px;height:40px;border:1px solid var(--line-strong);border-radius:8px">' +
       '<select class="inp" data-f="entry_year" style="width:auto">' + Array.from({ length: 12 }, (_, i) => sy - 6 + i).map(y => '<option value="' + y + '"' + (y === k.entry_year ? ' selected' : '') + '>' + y + '년 입학 → ' + ((sy - y + 1) >= 1 && (sy - y + 1) <= 6 ? (sy - y + 1) + '학년' : '범위 밖') + '</option>').join('') + '</select></div>' +
       '<div class="f3 form" style="margin-top:10px">' + ORDER.map(s => { const off = (k.levels && k.levels[s]) || 0; return '<label>' + S[s].emoji + ' ' + S[s].short + ' <small>지금 ' + X.levelOf(k, s) + '학년</small><select data-lv="' + s + '">' + [-2, -1, 0, 1, 2].map(o => '<option value="' + o + '"' + (o === off ? ' selected' : '') + '>' + (o === 0 ? '학년 그대로' : o < 0 ? o + '학년 (쉽게)' : '+' + o + '학년') + '</option>').join('') + '</select></label>'; }).join('') + '</div>' +
@@ -296,7 +296,7 @@
   function cardFamily() {
     const url = location.href.replace(/admin\.html.*$/, '');
     return '<div class="card"><h3>가족코드 · 보상</h3><div class="form"><label>새 가족코드 <small>6자 이상 · 바꾸면 태블릿에서 다시 넣어야 해요</small><input id="nc" autocomplete="off" placeholder="새 가족코드"></label><div class="row end" style="margin-top:0"><button class="btn small" id="setc">가족코드 바꾸기</button></div>' +
-      '<div class="f2"><label>도장 목표<input id="rg" type="number" min="5" max="500" value="' + (st.family.reward_goal || 30) + '"></label><label>보상 약속<input id="rt" maxlength="60" value="' + esc(st.family.reward_text || '') + '"></label></div><div class="row end" style="margin-top:0"><button class="btn small" id="setr">보상 저장</button></div></div>' +
+      '<label>가족 이름 <small>아이 화면 맨 위에 보여요</small><input id="fn" maxlength="20" value="' + esc(st.family.family_name || '') + '"></label><div class="f2"><label>도장 목표<input id="rg" type="number" min="5" max="500" value="' + (st.family.reward_goal || 30) + '"></label><label>보상 약속<input id="rt" maxlength="60" value="' + esc(st.family.reward_text || '') + '"></label></div><div class="row end" style="margin-top:0"><button class="btn small" id="setr">가족 이름·보상 저장</button></div></div>' +
       '<h3 style="margin-top:18px;font-size:16px">📱 태블릿 준비 (한 번만)</h3><ol style="line-height:1.9;margin:6px 0 0;padding-left:20px;font-size:14px"><li>크롬에서 <b>' + esc(url) + '</b> 열기 → 가족코드 → 얼굴 선택</li><li>크롬 메뉴(⋮) → <b>홈 화면에 추가</b></li><li>같은 크롬에서 <a href="' + X.EBS.login + '" target="_blank">EBS 초등 로그인</a> (안 하면 5분 미리보기)</li></ol></div>';
   }
 
@@ -326,9 +326,14 @@
       if (t.id === 'copyPrompt') { updatePrompt(); const txt = $('#promptBox').textContent; try { await navigator.clipboard.writeText(txt); X.toast('요청문을 복사했어요'); } catch (er) { const r = document.createRange(); r.selectNodeContents($('#promptBox')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); X.toast('선택됐어요. 길게 눌러 복사하세요'); } return; }
       if (d.savekid) { const c = t.closest('[data-k]'), f = n => c.querySelector('[data-f="' + n + '"]'), levels = {}; $$('[data-lv]', c).forEach(s => { if (+s.value) levels[s.dataset.lv] = +s.value; });
         await q(db.from('edu_kids').update({ name: f('name').value.trim(), emoji: f('emoji').value.trim() || '🙂', color: f('color').value, entry_year: +f('entry_year').value, levels }).eq('id', d.savekid)); await reload(); X.toast('저장했어요'); return; }
+      if (d.addkid != null) { const name = prompt('아이 이름'); if (!name || !name.trim()) return; const g = parseInt(prompt('지금 몇 학년? (1~6)', '1'), 10); if (!(g >= 1 && g <= 6)) return X.toast('학년은 1~6으로 적어 주세요');
+        const { data: nk, error: ke } = await db.from('edu_kids').insert({ name: name.trim(), entry_year: X.schoolYear() - g + 1, emoji: '🐰', color: '#1aae39', sort: st.kids.length + 1 }).select().single(); if (ke) return X.toast('오류: ' + ke.message);
+        const base = [['lesson', 'read', [1, 2, 3, 4, 5], 'next', null, {}, 10], ['drill', 'calc', [1, 2, 3, 4, 5], 'auto', null, { count: g <= 2 ? 8 : 10 }, 20], ['lesson', 'word', [1, 2, 3, 4, 5], 'next', null, {}, 30], ['lesson', 'math', [1, 4], 'next', null, {}, 40], ['lesson', 'eng', [2, 5], 'next', null, {}, 41], ['lesson', 'soc', [3], 'next', null, { track: 'history' }, 42], ['task', 'etc', [1, 2, 3, 4, 5], null, '알림장 보고 학교 숙제 확인하기', {}, 100]];
+        await q(db.from('edu_plan').insert(base.map(b => ({ kid_id: nk.id, kind: b[0], subject: b[1], weekdays: b[2], ref: b[3], title: b[4], payload: b[5], sort: b[6] }))));
+        st.kidSel = nk.id; await reload(); X.toast(name + ' 등록! 기본 시간표를 넣어 뒀어요'); return; }
       if (d.reward) { if (!confirm('보상을 줬나요? 칭찬 도장을 0부터 다시 모아요.')) return; await q(db.from('edu_kids').update({ reward_since: new Date().toISOString() }).eq('id', d.reward)); X.toast('도장을 새로 모아요 🎁'); return; }
-      if (t.id === 'setc') { const c = $('#nc').value.trim(); if (c.length < 6) return X.toast('6자 이상으로 정해 주세요'); await q(db.rpc('edu_set_code', { p_code: c })); $('#nc').value = ''; X.toast('가족코드를 바꿨어요. 태블릿에서 새 코드를 넣어 주세요'); return; }
-      if (t.id === 'setr') { await q(db.from('edu_family').update({ reward_goal: Math.max(5, +$('#rg').value || 30), reward_text: $('#rt').value.trim() }).eq('id', 1)); X.toast('저장했어요'); return; }
+      if (t.id === 'setc') { const c = $('#nc').value.trim(); if (c.length < 6) return X.toast('6자 이상으로 정해 주세요'); const { error: ce } = await db.rpc('edu_set_code', { p_code: c }); if (ce) return X.toast(/code_taken/.test(ce.message) ? '다른 가족이 쓰는 코드예요. 다른 코드로 정해 주세요' : '오류: ' + ce.message); $('#nc').value = ''; X.toast('가족코드를 바꿨어요. 태블릿에서 새 코드를 넣어 주세요'); return; }
+      if (t.id === 'setr') { await q(db.from('edu_families').update({ family_name: $('#fn').value.trim() || '우리집 배움터', reward_goal: Math.max(5, +$('#rg').value || 30), reward_text: $('#rt').value.trim(), updated_at: new Date().toISOString() }).eq('id', st.family.id)); await reload(); X.toast('저장했어요'); return; }
     } catch (er) { t.disabled = false; }
   });
   function rerenderLib() { const el = $('#lib'); el.innerHTML = libSection(); el.querySelector('details').open = true; }
