@@ -9,6 +9,20 @@
   const st = { code: X.store.get('code'), kids: [], family: {}, kid: null, day: X.ymd(), data: null, items: [], view: 'today', browse: { subject: 'math', grade: null, track: 'history' } };
   let L = null, timerI = null;
 
+  /* ── 휘스토리(한국사) 탭: 가족 설정에 history 기능이 켜진 집만 보이고, 그때만 파일을 불러와요 ── */
+  const BASE = (document.currentScript && document.currentScript.src.replace(/kid\.js[^/]*$/, '')) || 'assets/';
+  const hasWH = () => !!(st.family.features && st.family.features.history);
+  let whLoad = null, whOpened = false;
+  function loadWH() {
+    if (whLoad) return whLoad;
+    const add = (tag, attrs) => new Promise((ok, no) => { const el = document.createElement(tag); Object.assign(el, attrs); el.onload = ok; el.onerror = no; document.head.appendChild(el); });
+    whLoad = add('link', { rel: 'stylesheet', href: BASE + 'history.css?v=1' }).catch(() => { })
+      .then(() => add('script', { src: BASE + 'history-data.js?v=1' })).then(() => add('script', { src: BASE + 'history.js?v=1' }))
+      .then(() => window.WH.mount({ st, rpc, P, go, X }))
+      .catch(e => { whLoad = null; throw e; });
+    return whLoad;
+  }
+
   /* ── 서버 ── */
   async function rpc(fn, args) {
     const { data, error } = await X.sb().rpc(fn, args);
@@ -48,6 +62,7 @@
   }
   async function pickKid(id) {
     st.kid = st.kids.find(k => k.id === id); X.store.set('kid', id); st.browse.grade = null;
+    whOpened = false; if (window.WH) WH.resetKid();
     app.innerHTML = '<div class="spin"></div>'; await loadDay(); go('today');
   }
 
@@ -104,6 +119,7 @@
   function chrome() {
     const k = st.kid, list = learnItems(), rv = (st.data.review || []).length, d = X.parseYmd(st.day);
     const tabs = [['today', '오늘의 학습'], ['notes', '오답노트' + (rv ? ' <span class="badge num">' + rv + '</span>' : '')], ['subjects', '과목별 공부'], ['room', '나의 공부방']];
+    if (hasWH()) tabs.push(['history', '📜 휘스토리 한국사']);
     const curG = st.view === 'subjects' ? st.browse.grade : X.gradeOf(k);
     return '<div class="util"><div class="wrap"><a href="' + X.EBS.main + '" target="_blank" rel="noopener">EBS 초등 바로가기 ↗</a><a href="admin.html">엄마 관리</a></div></div>' +
       '<header class="hdr"><div class="wrap"><button class="logo" data-go="today"><span class="logo-mark">🏡</span><span class="logo-name">' + esc(st.family.family_name || '우리집 배움터') + '<span class="logo-sub">엄마가 차려 둔 매일 공부</span></span></button>' +
@@ -111,29 +127,38 @@
       '<div class="profiles">' + st.kids.map(x => '<button class="prof" data-prof="' + x.id + '" aria-pressed="' + (x.id === k.id) + '"><span class="avatar" style="background:' + esc(x.color) + '22">' + esc(x.emoji) + '</span>' + esc(x.name) + ' <small class="num">' + X.gradeOf(x) + '학년</small></button>').join('') + '</div></div></header>' +
       '<nav class="mainnav"><div class="wrap">' + tabs.map(t => '<button class="tab" data-go="' + t[0] + '"' + ((st.view === t[0] || (st.view === 'lesson' && t[0] === 'today')) ? ' aria-current="page"' : '') + '>' + t[1] + '</button>').join('') +
       '<a class="navtext" href="admin.html">🔒 엄마 관리</a></div></nav>' +
-      '<div class="gradeband"' + (st.view === 'lesson' ? ' hidden' : '') + '><div class="wrap"><span class="gb-label">학년 바로가기</span>' + [1, 2, 3, 4, 5, 6].map(g => '<button class="gpill" data-grade="' + g + '" aria-pressed="' + (g === curG) + '"><span class="face">' + ['🐣', '🐥', '🐰', '🦊', '🐼', '🦁'][g - 1] + '</span>' + g + '학년</button>').join('') +
+      '<div class="gradeband"' + (st.view === 'lesson' || st.view === 'history' ? ' hidden' : '') + '><div class="wrap"><span class="gb-label">학년 바로가기</span>' + [1, 2, 3, 4, 5, 6].map(g => '<button class="gpill" data-grade="' + g + '" aria-pressed="' + (g === curG) + '"><span class="face">' + ['🐣', '🐥', '🐰', '🦊', '🐼', '🦁'][g - 1] + '</span>' + g + '학년</button>').join('') +
       '<span class="gb-note">' + esc(k.name) + '는 지금 ' + X.gradeOf(k) + '학년 · 다른 학년 공부도 열어 볼 수 있어요</span></div></div>';
   }
   // 브라우저 뒤로가기: 화면을 바꿀 때마다 기록을 남기고, 맨 처음 화면에서는 사이트 밖(흰 화면)으로 나가지 않게 막아요
   let guarded = false;
   function remember(view, how) {
     if (how === 'pop') return;
-    const s = { v: view, b: view === 'subjects' ? Object.assign({}, st.browse) : null, from: view === 'lesson' ? st.view : null };
+    const s = { v: view, b: view === 'subjects' ? Object.assign({}, st.browse) : null, from: view === 'lesson' ? st.view : null, w: view === 'history' && window.WH ? WH.state() : null };
     try {
       if (!guarded) { history.replaceState(s, ''); return; } // 첫 터치 전에는 기록만 (크롬은 터치 없이 쌓은 기록을 건너뜀)
       const cur = history.state || {};
-      const same = cur.v === view && (view !== 'subjects' || JSON.stringify(cur.b) === JSON.stringify(s.b));
+      const same = cur.v === view && (view !== 'subjects' || JSON.stringify(cur.b) === JSON.stringify(s.b)) && (view !== 'history' || cur.w === s.w);
       if (same || how === 'replace') { if (cur.from) s.from = cur.from; history.replaceState(s, ''); } else history.pushState(s, '');
     } catch (e) { }
   }
   function go(view, how) {
     // 강의 화면에서 '오늘의 학습'으로 돌아갈 때는 기록을 한 칸 되돌려서, 뒤로가기를 눌러도 강의가 다시 나오지 않게
     if (how !== 'pop' && st.view === 'lesson' && view !== 'lesson' && history.state && history.state.v === 'lesson' && history.state.from === view) { history.back(); return; }
+    if (view === 'history' && !hasWH()) view = 'today';
+    if (view === 'history' && !whOpened) {
+      app.innerHTML = '<div class="spin"></div>';
+      loadWH().then(() => WH.open()).then(() => { whOpened = true; go('history', how); })
+        .catch(() => { X.toast('휘스토리를 불러오지 못했어요. 인터넷을 확인해 주세요'); go('today', 'replace'); });
+      return;
+    }
     stopTimer(); try { speechSynthesis.cancel(); } catch (e) { }
+    document.querySelectorAll('.wh-modal').forEach(m => m.remove());
     remember(view, how);
     st.view = view;
-    const body = { today: viewToday, notes: viewNotes, subjects: viewSubjects, room: viewRoom, lesson: () => '<section id="view-lesson"></section>' }[view]();
-    app.innerHTML = chrome() + '<main id="main">' + body + '</main><footer><div class="wrap"><span>우리집 배움터 · 가족 전용</span><span>강의 영상의 저작권은 EBS에 있고, 이 사이트는 EBS 강의를 링크(공식 유튜브는 퍼가기)로만 연결해요. 설명·문제는 새로 쓴 자료예요.</span></div></footer>';
+    const body = { today: viewToday, notes: viewNotes, subjects: viewSubjects, room: viewRoom, history: () => WH.render(), lesson: () => '<section id="view-lesson"></section>' }[view]();
+    const foot = view === 'history' ? '휘스토리의 인물·유적 그림은 이해를 돕기 위해 다시 그린 학습용 그림이에요. 영상은 유튜브 채널의 보조 자료이고, 사실 확인은 교과서·박물관 자료를 기준으로 해요.' : '강의 영상의 저작권은 EBS에 있고, 이 사이트는 EBS 강의를 링크(공식 유튜브는 퍼가기)로만 연결해요. 설명·문제는 새로 쓴 자료예요.';
+    app.innerHTML = chrome() + '<main id="main">' + body + '</main><footer><div class="wrap"><span>우리집 배움터 · 가족 전용</span><span>' + foot + '</span></div></footer>';
     if (view === 'lesson') renderLesson();
     if (view === 'room') fillRoom();
     window.scrollTo(0, 0);
@@ -477,6 +502,7 @@
   /* ── 이벤트 ── */
   document.addEventListener('click', async e => {
     const t = e.target.closest('button,a'); if (!t || !st.kid) return; const d = t.dataset;
+    if (window.WH && st.view === 'history' && await WH.onClick(e)) return;
     if (d.go) { e.preventDefault(); if (d.go !== 'lesson') go(d.go); return; }
     if (d.href) { window.open(d.href, '_blank', 'noopener'); return; }
     if (d.prof) { if (d.prof !== st.kid.id) pickKid(d.prof); return; }
@@ -529,6 +555,7 @@
     }
     if (s.v === 'lesson' && !L) { go('today', 'pop'); return; }
     if (s.b) st.browse = Object.assign({}, s.b);
+    if (s.v === 'history' && s.w && window.WH) WH.restore(s.w);
     go(s.v, 'pop');
   });
   window.addEventListener('focus', () => { if (st.kid && st.data && st.view === 'today' && X.ymd() !== st.day) loadDay().then(() => go('today')).catch(() => { }); });
