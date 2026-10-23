@@ -5,14 +5,14 @@
   const SUPABASE_KEY = 'sb_publishable_PjQxftU-iz0Zvx8PYejRZQ_IcXPIAca'; // 공개용 키(권한은 DB 보안 규칙으로 제한)
 
   const SUBJECTS = {
-    read: { name: '국어 문해력', short: '문해력', emoji: '📖', bg: '#d6b6f6', min: 8 },
-    calc: { name: '수학 연산', short: '연산', emoji: '🧮', bg: '#cfe6fb', min: 7 },
-    math: { name: '수학 단원', short: '수학', emoji: '📐', bg: '#bfe7e5', min: 15 },
-    soc:  { name: '사회·한국사', short: '사회', emoji: '🏯', bg: '#ffd9bd', min: 12 },
-    word: { name: '영어 단어', short: '영단어', emoji: '🔤', bg: '#ffd3ef', min: 8 },
-    eng:  { name: '영어 수업', short: '영어', emoji: '💬', bg: '#c9efd2', min: 12 },
-    etc:  { name: '할 일', short: '할 일', emoji: '✅', bg: '#efe6da', min: 0 },
-    link: { name: '엄마가 고른 강의', short: '강의', emoji: '🎬', bg: '#dbe3ff', min: 15 }
+    read: { name: '국어 문해력', short: '문해력', emoji: '📖', bg: '#ecdffb', col: 'var(--c-read)', min: 10 },
+    calc: { name: '수학 연산', short: '연산', emoji: '🧮', bg: '#dcecfb', col: 'var(--c-calc)', min: 7 },
+    math: { name: '수학 단원', short: '수학', emoji: '📐', bg: '#d6f1ef', col: 'var(--c-math)', min: 25 },
+    soc:  { name: '사회·한국사', short: '사회', emoji: '🏯', bg: '#ffe5d1', col: 'var(--c-soc)', min: 12 },
+    word: { name: '영어 단어', short: '영단어', emoji: '🔤', bg: '#ffe0f2', col: 'var(--c-word)', min: 7 },
+    eng:  { name: '영어 수업', short: '영어', emoji: '💬', bg: '#dcf5e2', col: 'var(--c-eng)', min: 12 },
+    etc:  { name: '할 일', short: '할 일', emoji: '✅', bg: '#f1e9de', col: 'var(--c-etc)', min: 0 },
+    link: { name: '엄마가 고른 강의', short: '강의', emoji: '🎬', bg: '#e3e8ff', col: 'var(--c-link)', min: 15 }
   };
   const SUBJECT_ORDER = ['read', 'calc', 'math', 'soc', 'word', 'eng'];
   const WD = ['일', '월', '화', '수', '목', '금', '토'];
@@ -231,7 +231,14 @@
     return window.__sb;
   }
 
+  // 유튜브 주소 → 사이트 안 재생용 주소 (EBS 초등 강의 페이지는 다른 사이트 안 재생을 막아 둠 → 새 창)
+  function ytId(url) {
+    const m = String(url || '').match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+  function ytEmbed(url) { const id = ytId(url); return id ? 'https://www.youtube.com/embed/' + id + '?rel=0&modestbranding=1&playsinline=1' : null; }
+
   window.EDU = { SUBJECTS, SUBJECT_ORDER, WD, ymd, parseYmd, schoolYear, semester, gradeOf, levelOf, fmtDate, rng, shuffle,
     F, fstr, parseNum, sameNum, check, answerText, CALC, CALC_MAP, calcTopicsFor, autoCalcTopic, makeCalc,
-    LIB, LIB_MAP, libList, nextItem, EBS, ebsFor, speak, esc, fracHtml, toast, store, sb };
+    LIB, LIB_MAP, libList, nextItem, EBS, ebsFor, ytId, ytEmbed, speak, esc, fracHtml, toast, store, sb };
 })();
