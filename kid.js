@@ -114,8 +114,23 @@
       '<div class="gradeband"' + (st.view === 'lesson' ? ' hidden' : '') + '><div class="wrap"><span class="gb-label">학년 바로가기</span>' + [1, 2, 3, 4, 5, 6].map(g => '<button class="gpill" data-grade="' + g + '" aria-pressed="' + (g === curG) + '"><span class="face">' + ['🐣', '🐥', '🐰', '🦊', '🐼', '🦁'][g - 1] + '</span>' + g + '학년</button>').join('') +
       '<span class="gb-note">' + esc(k.name) + '는 지금 ' + X.gradeOf(k) + '학년 · 다른 학년 공부도 열어 볼 수 있어요</span></div></div>';
   }
-  function go(view) {
+  // 브라우저 뒤로가기: 화면을 바꿀 때마다 기록을 남기고, 맨 처음 화면에서는 사이트 밖(흰 화면)으로 나가지 않게 막아요
+  let guarded = false;
+  function remember(view, how) {
+    if (how === 'pop') return;
+    const s = { v: view, b: view === 'subjects' ? Object.assign({}, st.browse) : null, from: view === 'lesson' ? st.view : null };
+    try {
+      if (!guarded) { guarded = true; history.replaceState({ guard: 1 }, ''); history.pushState(s, ''); return; }
+      const cur = history.state || {};
+      const same = cur.v === view && (view !== 'subjects' || JSON.stringify(cur.b) === JSON.stringify(s.b));
+      if (same || how === 'replace') { if (cur.from) s.from = cur.from; history.replaceState(s, ''); } else history.pushState(s, '');
+    } catch (e) { }
+  }
+  function go(view, how) {
+    // 강의 화면에서 '오늘의 학습'으로 돌아갈 때는 기록을 한 칸 되돌려서, 뒤로가기를 눌러도 강의가 다시 나오지 않게
+    if (how !== 'pop' && st.view === 'lesson' && view !== 'lesson' && history.state && history.state.v === 'lesson' && history.state.from === view) { history.back(); return; }
     stopTimer(); try { speechSynthesis.cancel(); } catch (e) { }
+    remember(view, how);
     st.view = view;
     const body = { today: viewToday, notes: viewNotes, subjects: viewSubjects, room: viewRoom, lesson: () => '<section id="view-lesson"></section>' }[view]();
     app.innerHTML = chrome() + '<main id="main">' + body + '</main><footer><div class="wrap"><span>우리집 배움터 · 가족 전용</span><span>강의 영상의 저작권은 EBS에 있고, 이 사이트는 EBS 강의를 링크(공식 유튜브는 퍼가기)로만 연결해요. 설명·문제는 새로 쓴 자료예요.</span></div></footer>';
@@ -123,6 +138,29 @@
     if (view === 'room') fillRoom();
     window.scrollTo(0, 0);
   }
+
+  /* ── 강의 썸네일 ── */
+  function vidInfo(it, lv) {
+    lv = lv || it.level || X.levelOf(st.kid, it.subject, X.parseYmd(st.day));
+    if (it.kind === 'book') {
+      const b = it.book, ls = it.lesson || {}, e = X.ebsFor({ subject: it.subject, grades: [lv] }, lv), url = ls.url || b.course_url || e.url;
+      return { url, series: b.title, thumb: (ls.url && X.thumbFor(ls.url)) || b.cover_url || X.thumbFor(b.course_url || '') || e.thumb || X.thumbFor(e.url) };
+    }
+    if (it.kind === 'drill') { const e = X.ebsFor({ subject: 'calc', grades: [lv], sem: X.semester(X.parseYmd(st.day)) }, lv); return { url: e.url, series: e.label, thumb: e.thumb || X.thumbFor(e.url) }; }
+    if (it.kind === 'link' || it.kind === 'mat') { const m = it.mat || {}, url = it.url || m.url; return { url, series: '엄마가 고른 강의', thumb: X.thumbFor(url, (m.body && m.body.thumb) || null) }; }
+    if (it.lib) {
+      const ov = it.payload && it.payload.url ? { [it.lib.id]: { url: it.payload.url } } : st.over, e = X.ebsFor(it.lib, lv, ov);
+      return { url: e.url, series: e.label, exact: !!e.exact, thumb: X.thumbFor(e.url) || e.thumb || null };
+    }
+    return { url: '', series: '', thumb: null };
+  }
+  // 썸네일이 없거나 못 불러오면 보이는 강의 표지 (그림 아래에 깔아 둠)
+  function coverArt(subj, series, title) {
+    const sj = S[subj] || S.link;
+    return '<span class="cover-art" style="--cc:' + sj.col + '"><span class="ca-badge">EBS 초등</span><span class="ca-emoji">' + sj.emoji + '</span>' +
+      '<span class="ca-series">' + esc(series || sj.name) + '</span>' + (title ? '<span class="ca-title">' + esc(title) + '</span>' : '') + '</span>';
+  }
+  function thumbImg(src, alt) { return src ? '<img class="th-img" src="' + esc(src) + '" alt="' + esc(alt || '') + '" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : ''; }
 
   /* ── 오늘의 학습 ── */
   function heroArt() {
@@ -169,7 +207,9 @@
     const cards = list.map(it => {
       const sj = S[it.subject] || S.link, i = st.items.indexOf(it);
       const ttl = it.title, meta = (it.kind === 'link' || it.kind === 'mat') ? '엄마가 고른 강의' : itemMeta(it);
-      return '<div class="tcard' + (it.done ? ' done' : '') + '"><div class="tc-head" style="background:' + sj.col + '">' + sj.emoji + ' ' + esc(sj.short === '강의' ? '강의' : sj.name) + '</div>' +
+      const vi = vidInfo(it);
+      return '<div class="tcard' + (it.done ? ' done' : '') + '"><button class="tc-thumb" data-open="' + i + '" aria-label="' + esc(ttl) + ' 열기">' + coverArt(it.subject, vi.series, '') + thumbImg(vi.thumb, vi.series) +
+        '<span class="tc-chip" style="background:' + sj.col + '">' + sj.emoji + ' ' + esc(sj.short === '강의' ? '강의' : sj.name) + '</span>' + (it.done ? '<span class="tc-done">✓</span>' : '<span class="tc-play">▶</span>') + '</button>' +
         '<div class="tc-body">' + (it.kind === 'book' ? '<span class="book">📗 ' + esc(it.book.title) + ' · ' + it.no + '강</span>' : '') + '<b class="ttl">' + esc(ttl) + '</b><span class="meta">' + esc(meta) + '</span></div>' +
         (it.done ? '<button class="tbtn done" data-open="' + i + '">✓ 완료' + (it.doneLog && it.doneLog.total ? ' ' + it.doneLog.score + '/' + it.doneLog.total : '') + '</button>'
           : '<button class="tbtn go" data-open="' + i + '">' + (it.watched ? '이어하기' : '시작하기') + '</button>') + '</div>';
@@ -235,6 +275,7 @@
       }
     }
     L.chipName = subj.name; L.col = subj.col;
+    if (L.video) { const vi = vidInfo(it, lv); L.video.thumb = vi.thumb; L.video.series = vi.series; }
     go('lesson');
   }
 
@@ -255,7 +296,8 @@
   function stepVideo() {
     const v = L.video, it = L.it;
     const tile = v.embed ? '<div class="video"><iframe src="' + esc(v.embed) + '" title="' + esc(v.label) + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>'
-      : '<a class="video" id="vlink" href="' + esc(v.url) + '" target="_blank" rel="noopener" style="background:' + L.col + '"><span class="tagr">EBS 새 창 ↗</span><span class="play">▶</span><span class="cap">' + esc(v.label) + '</span></a>';
+      : '<a class="video has-thumb" id="vlink" href="' + esc(v.url) + '" target="_blank" rel="noopener">' + coverArt(L.subject, v.series || v.label, L.title) + thumbImg(v.thumb, v.label) +
+        '<span class="shade"></span><span class="tagr">EBS 새 창 ↗</span><span class="play">▶</span><span class="cap">' + esc(v.label) + '</span></a>';
     return '<div class="panel"><div class="video-grid">' + tile + '<div><h3>먼저 강의를 들어요</h3><p style="margin:0 0 12px">' +
       (v.embed ? '여기에서 바로 재생돼요. 끝까지 보고 아래에 체크해요.' : '화면을 누르면 EBS 강의가 새 창으로 열려요. 끝까지 보고 이 화면으로 돌아와서 체크해요.') + '</p>' +
       (v.hint ? '<div class="note" style="margin-bottom:6px">💡 ' + esc(v.hint) + '</div>' : '') + (L.memo ? '<div class="note">📝 ' + esc(L.memo) + '</div>' : '') +
@@ -280,7 +322,7 @@
   }
   function stepBook() {
     const sj = S[L.subject] || S.link;
-    return '<div class="panel"><div class="book-task"><div class="cover" style="background:' + L.col + '">' + sj.emoji + '</div><div><div style="color:var(--muted);font-weight:700">📗 ' + esc(L.book.title) + ' · ' + L.no + '강</div>' +
+    return '<div class="panel"><div class="book-task"><div class="cover" style="background:' + L.col + ';position:relative;overflow:hidden">' + sj.emoji + thumbImg(L.video && L.video.thumb, L.book.title) + '</div><div><div style="color:var(--muted);font-weight:700">📗 ' + esc(L.book.title) + ' · ' + L.no + '강</div>' +
       '<div class="pages">' + (L.pages ? esc(L.pages) + ' 풀기' : L.no + '강 문제 풀기') + '</div><p style="margin:6px 0 0">강의에서 배운 내용으로 교재 문제를 풀어요. 다 풀면 엄마와 답을 맞춰 봐요.</p>' +
       '<label class="check"><input type="checkbox" id="bookdone"> 교재 다 풀었어요</label></div></div>' +
       '<div class="row end"><button class="btn ghost" data-step="-1">이전</button><button class="btn" id="bookNext" disabled>' + esc(L.steps[L.step + 1]) + ' →</button></div></div>';
@@ -472,6 +514,18 @@
     if (e.target.id === 'ansin' || e.target.id === 'ansin2') { e.preventDefault(); const nb = $('#qNext'); if (nb) return nextQ(); const s = $('[data-submit]'); if (s) s.click(); }
   });
   document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'newtask') { const a = $('[data-addtask]'); if (a) a.click(); } });
+  window.addEventListener('popstate', e => {
+    if (!st.kid || !st.data) return;
+    const s = e.state || {};
+    if (s.guard || !s.v) { // 맨 처음 화면에서 뒤로가기 → 사이트에 그대로 머물기
+      try { history.pushState({ v: 'today' }, ''); } catch (er) { }
+      if (st.view !== 'today') go('today', 'pop'); else X.toast('여기가 첫 화면이에요');
+      return;
+    }
+    if (s.v === 'lesson' && !L) { go('today', 'pop'); return; }
+    if (s.b) st.browse = Object.assign({}, s.b);
+    go(s.v, 'pop');
+  });
   window.addEventListener('focus', () => { if (st.kid && st.data && st.view === 'today' && X.ymd() !== st.day) loadDay().then(() => go('today')).catch(() => { }); });
   boot();
 })();

@@ -172,7 +172,11 @@
     grade: { 1: E + 'grade/list?tab=1s', 2: E + 'grade/list?tab=2s', 3: E + 'grade/list?tab=3s', 4: E + 'grade/list?tab=4s', 5: E + 'grade/list?tab=5s', 6: E + 'grade/list?tab=6s' },
     math: { '1-1': 100004633, '1-2': 100005135, '2-1': 100006191, '2-2': 100005136, '3-1': 100006149, '3-2': 100006220, '4-1': 100006150, '4-2': 100006221, '6-1': 100007147, '6-2': 100007230 },
     soc: { '3-1': 100006151, '4-2': 100006223, '5-1': 100007148, '6-1': 100007149 },
-    vocab: { '1-1': 100004668, '3-1': 100006197, '3-2': 100006262, '4-1': 100006202, '4-2': 100006263, '5-1': 100004133, '5-2': 100004134 },
+    vocab: { '1-1': 100004668, '1-2': 100005162, '2-2': 100005163, '3-1': 100006197, '3-2': 100006262, '4-1': 100006202, '4-2': 100006263, '5-1': 100004133, '5-2': 100007197, '6-2': 100007262 },
+    // 만점왕 연산: 학년·학기마다 1단계씩 (1-1 → 1단계 … 6-2 → 12단계)
+    calc: [100004639, 100004640, 100004641, 100004642, 100006155, 100006156, 100006157, 100006158, 100007152, 100007153, 100007154, 100007155],
+    reading: { 1: 100004429, 2: 100004434, 3: 100003534, 4: 100003549 },
+    history: { easy: 100007163, story: 100007165 },
     series: {
       manjeom: E + 'series/list?seriesId=S00053', calc: E + 'series/list?seriesId=S00097', vocab: E + 'series/list?seriesId=S00135',
       reading: E + 'series/list?seriesId=S00137', literacy: E + 'literacy', story: E + 'series/list?seriesId=S00069', easyStory: E + 'series/list?seriesId=S00112',
@@ -180,6 +184,32 @@
     },
     login: 'https://primary.ebs.co.kr/login/form'
   };
+  // EBS 강좌 대표 이미지 (각 강좌 페이지의 공유 이미지, 2026-10-23 확인) — courseId → cbox 경로
+  const TH = {
+    100004633: '2024/3/11/100004633/93187111365497786', 100005135: '2024/7/11/100005135/103725773873781168', 100006191: '2025/3/4/100006191/124104536744480030',
+    100005136: '2024/7/11/100005136/103725792496125860', 100006149: '2024/12/19/100006149/117650407561632854', 100006220: '2025/7/8/100006220/7687364203128072',
+    100006150: '2024/12/19/100006150/117651372187714013', 100006221: '2025/7/21/100006221/8818158918823611', 100007147: '2025/12/23/100007147/22206267310340741',
+    100007230: '2026/6/29/100007230/38455875494943867', 100006151: '2024/12/19/100006151/117651390816026482', 100006223: '2025/7/8/100006223/7687484596652099',
+    100007148: '2025/12/23/100007148/22206290171642011', 100007149: '2025/12/23/100007149/22206309632817398',
+    100004668: '2024/3/27/100004668/94573980188993864', 100005162: '2024/8/19/100005162/107100318950158323', 100005163: '2024/8/13/100005163/106564701644204943',
+    100006197: '2025/3/31/100006197/126445345275118672', 100006262: '2025/8/26/100006262/11909110032579283', 100006202: '2025/3/25/100006202/125927826173745663',
+    100006263: '2025/8/26/100006263/11909125206887938', 100004133: '2022/7/15/100004133/40909041000967810', 100004134: '2022/7/15/100004134/40911549375985696',
+    100007197: '2026/9/1/100007197/43960071546664993', 100007262: '2026/9/1/100007262/43960026678405337',
+    100004649: '2024/3/15/100004649/93519457240263909', 100004650: '2024/3/15/100004650/93518615488391856',
+    100004639: '2024/12/19/100004639/117651025122100494', 100004640: '2024/12/19/100004640/117651056305862641', 100004641: '2024/12/19/100004641/117652026016562973',
+    100004642: '2024/12/19/100004642/117652052935411650', 100006155: '2024/12/19/100006155/117650575464707458', 100006156: '2024/12/19/100006156/117650601276545602',
+    100006157: '2024/12/19/100006157/117650620643926559', 100006158: '2024/12/19/100006158/117651580562479723', 100007152: '2025/12/23/100007152/22210899885671753',
+    100007153: '2025/12/23/100007153/22210944803303865', 100007154: '2025/12/23/100007154/22210967828966188', 100007155: '2025/12/23/100007155/22211063662196932',
+    100004429: '2022/12/23/100004429/54809415335095545', 100004434: '2022/12/27/100004434/55155261416690743', 100003534: '2022/7/15/100003534/40909612726923148',
+    100003549: '2022/7/15/100003549/40909388065568357', 100007163: '2026/1/15/100007163/24202378638493673', 100007165: '2025/12/24/100007165/22269024408971886'
+  };
+  const thumbOf = id => TH[id] ? 'https://cbox.ebs.co.kr/course/' + TH[id] + '_course.jpg' : null;
+  // 어떤 주소든 → 보여 줄 썸네일 (유튜브 / 알려진 EBS 강좌 / 엄마가 넣은 표지)
+  function thumbFor(url, extra) {
+    if (extra) return extra;
+    const y = ytId(url); if (y) return 'https://i.ytimg.com/vi/' + y + '/hqdefault.jpg';
+    const m = String(url || '').match(/courseId=(\d+)/); return m ? thumbOf(+m[1]) : null;
+  }
   const cv = id => E + 'view?courseId=' + id;
   function ebsFor(item, level, overrides) {
     if (!item) return null;
@@ -188,9 +218,10 @@
     const label = (item.ebs && item.ebs.label) || 'EBS 초등';
     switch (item.subject) {
       case 'math': return { url: EBS.math[k] ? cv(EBS.math[k]) : EBS.series.manjeom, label: '만점왕 수학 ' + k + (EBS.math[k] ? '' : ' (시리즈에서 찾기)') };
-      case 'calc': return { url: EBS.series.calc, label: '만점왕 연산' };
-      case 'read': return /독해/.test(label) ? { url: EBS.series.reading, label: '독해가 문해력이다' } : { url: EBS.vocab[g + '-' + semester()] ? cv(EBS.vocab[g + '-' + semester()]) : EBS.series.vocab, label: '어휘가 문해력이다' };
-      case 'soc': if (item.track === 'history') return g <= 3 ? { url: EBS.series.easyStory, label: '매일 쉬운 스토리 한국사' } : { url: EBS.series.story, label: '스토리 한국사' };
+      case 'calc': { const st = (g - 1) * 2 + s, id = EBS.calc[st - 1]; return id ? { url: cv(id), label: '만점왕 연산 ' + st + '단계', thumb: thumbOf(id) } : { url: EBS.series.calc, label: '만점왕 연산' }; }
+      case 'read': if (/독해/.test(label)) { const id = EBS.reading[g]; return id ? { url: cv(id), label: '독해가 문해력이다 ' + g + '단계', thumb: thumbOf(id) } : { url: EBS.series.reading, label: '독해가 문해력이다' }; }
+        return { url: EBS.vocab[g + '-' + semester()] ? cv(EBS.vocab[g + '-' + semester()]) : EBS.series.vocab, label: '어휘가 문해력이다' };
+      case 'soc': if (item.track === 'history') return g <= 3 ? { url: EBS.series.easyStory, label: '매일 쉬운 스토리 한국사', thumb: thumbOf(EBS.history.easy) } : { url: EBS.series.story, label: '스토리 한국사', thumb: thumbOf(EBS.history.story) };
         return { url: EBS.soc[k] ? cv(EBS.soc[k]) : (g >= 3 ? EBS.series.manjeom : EBS.grade[g]), label: g >= 3 ? '만점왕 사회 ' + k : 'EBS ' + g + '학년 강좌' };
       case 'word': return g <= 2 ? { url: EBS.series.engStory, label: '영어 스토리 타임' } : { url: g <= 4 ? EBS.series.word1 : EBS.series.word2, label: '초등 필수 영단어 LEVEL ' + (g <= 4 ? 1 : 2) };
       case 'eng': return g <= 2 ? { url: EBS.series.engStory, label: '영어 스토리 타임' } : { url: EBS.series.engText, label: 'EBSe 교과서 영어' };
@@ -240,5 +271,5 @@
 
   window.EDU = { SUBJECTS, SUBJECT_ORDER, WD, ymd, parseYmd, schoolYear, semester, gradeOf, levelOf, fmtDate, rng, shuffle,
     F, fstr, parseNum, sameNum, check, answerText, CALC, CALC_MAP, calcTopicsFor, autoCalcTopic, makeCalc,
-    LIB, LIB_MAP, libList, nextItem, EBS, ebsFor, ytId, ytEmbed, speak, esc, fracHtml, toast, store, sb };
+    LIB, LIB_MAP, libList, nextItem, EBS, ebsFor, thumbFor, ytId, ytEmbed, speak, esc, fracHtml, toast, store, sb };
 })();

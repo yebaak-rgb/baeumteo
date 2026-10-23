@@ -446,3 +446,37 @@ details.lib summary{cursor:pointer;font-weight:800;font-size:18px;color:var(--he
 @media (max-width:860px){ .home-grid{grid-template-columns:minmax(0,1fr)} }
 @media (max-width:1100px) and (min-width:861px){ .home-grid .today-banner{grid-template-columns:1fr} .home-grid .hero-art{display:none} }
 .addrow .btn{white-space:nowrap;flex:none}
+
+/* ── v8: 강의 썸네일 · 공부방 정렬 ── */
+.g2>.card{margin-top:0}
+.cover-art{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:14px;text-align:center;color:#fff;
+  background:radial-gradient(circle at 85% 15%,rgba(255,255,255,.28) 0 18%,transparent 19%),radial-gradient(circle at 10% 95%,rgba(255,255,255,.18) 0 22%,transparent 23%),linear-gradient(135deg,var(--cc,#0075de),var(--night));z-index:0}
+.cover-art .ca-badge{position:absolute;left:10px;top:10px;background:#fff;color:#1b3a8a;font-weight:900;font-size:11px;border-radius:6px;padding:2px 7px;letter-spacing:.02em}
+.cover-art .ca-emoji{font-size:clamp(26px,4vw,54px);line-height:1;filter:drop-shadow(0 3px 6px rgba(0,0,0,.18))}
+.cover-art .ca-series{font-family:var(--f-display);font-size:clamp(14px,1.7vw,26px);line-height:1.2;word-break:keep-all;text-shadow:0 2px 6px rgba(0,0,0,.2)}
+.cover-art .ca-title{font-size:clamp(12px,1.2vw,17px);font-weight:700;opacity:.92;word-break:keep-all;max-width:90%}
+.th-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;background:#fff}
+/* 오늘 할 일 카드 썸네일 */
+.tcard .tc-thumb{position:relative;display:block;width:100%;aspect-ratio:16/9;border:0;padding:0;margin:0;overflow:hidden;background:var(--night);cursor:pointer}
+.tcard .tc-thumb .ca-emoji{font-size:30px}.tcard .tc-thumb .ca-series{font-size:14px}.tcard .tc-thumb .ca-badge{display:none}
+.tcard .tc-chip{position:absolute;left:8px;top:8px;z-index:2;color:var(--on-subj);font-weight:800;font-size:12px;border-radius:20px;padding:3px 9px;box-shadow:0 2px 6px rgba(0,0,0,.18);max-width:calc(100% - 16px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tcard .tc-play,.tcard .tc-done{position:absolute;right:8px;bottom:8px;z-index:2;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:14px;background:rgba(255,255,255,.95);color:#111;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.tcard .tc-done{background:var(--ok);color:#fff;font-weight:900}
+.tcard.done .tc-thumb img{filter:saturate(.6)}
+.tcard .tc-thumb:hover img{transform:scale(1.03)}.tcard .tc-thumb img{transition:transform .25s}
+/* 강의 화면 썸네일 */
+.video.has-thumb{background:var(--night)}
+.video.has-thumb .shade{position:absolute;inset:0;z-index:2;background:linear-gradient(to top,rgba(0,0,0,.62),rgba(0,0,0,0) 45%),rgba(0,0,0,.06)}
+.video.has-thumb .play,.video.has-thumb .tagr,.video.has-thumb .cap{z-index:3}
+.video.has-thumb .play{position:relative}
+.video.has-thumb .cap{color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+.video.has-thumb:hover .play{transform:scale(1.06)}.video .play{transition:transform .2s}
+/* 엄마 관리: 교재 표지 */
+.bk.th{grid-template-columns:auto auto 1fr auto}
+.bk-th{width:88px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+@media (max-width:760px){ .bk.th{grid-template-columns:auto 1fr} .bk.th .ctl{grid-column:1/-1;flex-wrap:wrap} }
+.video .cover-art{justify-content:flex-start;padding-top:8%}
+.video .cover-art .ca-emoji{font-size:44px}
+.tcard .tc-thumb .cover-art{padding:30px 14px 10px}
+.tcard .tc-thumb .ca-emoji{display:none}
+.tcard .tc-thumb .ca-series{font-size:15px;max-width:100%}

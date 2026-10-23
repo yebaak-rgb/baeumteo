@@ -14,7 +14,10 @@
   /* ── 로그인 ── */
   async function boot() {
     const { data: { session } } = await db.auth.getSession();
-    if (!session) return login();
+    // 구글 로그인에서 돌아온 주소(#access_token…, ?code=…)를 깨끗하게 → 뒤로가기 때 로그인 화면·오류로 가지 않게
+    const back = /access_token|error_description|[?&]code=/.test(location.hash + location.search), err = (location.hash.match(/error_description=([^&]+)/) || [])[1];
+    if (back) try { history.replaceState(null, '', location.pathname); } catch (e) { }
+    if (!session) return login(err ? '로그인 실패: ' + decodeURIComponent(err.replace(/\+/g, ' ')) : '');
     const { data: ok } = await db.rpc('edu_is_parent');
     if (!ok) { app.innerHTML = '<div class="gate"><div class="box"><h1>권한이 없어요</h1><p>' + esc(session.user.email) + ' 계정은 엄마 계정이 아니에요.</p><button class="btn ghost" id="lo">로그아웃</button></div></div>'; $('#lo').onclick = async () => { await db.auth.signOut(); login(); }; return; }
     app.innerHTML = '<div class="spin"></div>'; await loadAll(); render();
@@ -25,8 +28,10 @@
       '<button class="btn" id="gg" style="background:#fff;color:#1f1f1f;border:1px solid #dadce0;box-shadow:var(--sh1)"><svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg> 구글로 로그인</button>' +
       '<p style="margin:18px 0 0"><a href="index.html">← 아이 화면</a></p></div></div>';
     $('#gg').onclick = async () => {
-      const { error } = await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname, queryParams: { prompt: 'select_account' } } });
-      if (error) login('로그인 실패: ' + error.message);
+      // 새 기록을 남기지 않고(location.replace) 구글로 이동 → 로그인 뒤 뒤로가기를 눌러도 구글 화면이 다시 나오지 않아요
+      const { data, error } = await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname, skipBrowserRedirect: true, queryParams: { prompt: 'select_account' } } });
+      if (error) return login('로그인 실패: ' + error.message);
+      location.replace(data.url);
     };
   }
   async function loadAll() {
@@ -119,11 +124,13 @@
     const books = st.books.filter(b => b.kid_id === k.id);
     return '<div class="card"><h3>' + esc(k.emoji + ' ' + k.name) + ' 교재 진도 <small style="font-weight:500;color:var(--muted);font-size:13px">하루 1강 자동</small></h3><p class="desc">교재를 사면 여기 등록해요. 그 과목은 「강의 듣기 → 핵심 정리 → 교재 쪽 풀기 → 확인 문제」로 하루 1강씩 나가요. 아이가 끝내면 다음 날 다음 강이 열려요.</p><div class="books">' +
       (books.map(b => { const pct = Math.round(Math.min(b.current_no - 1, b.total) / b.total * 100);
-        return '<div class="bk"><span class="subj-chip" style="background:' + S[b.subject].col + '">' + S[b.subject].emoji + ' ' + S[b.subject].short + '</span><span class="t"><b>' + esc(b.title) + (b.active ? '' : ' (쉬는 중)') + '</b><small class="num">지금 ' + Math.min(b.current_no, b.total) + '강 / 전체 ' + b.total + '강' + (b.current_no > b.total ? ' · 다 끝났어요 🎉' : '') + (b.course_url ? ' · <a href="' + esc(b.course_url) + '" target="_blank">EBS 강좌</a>' : '') + '</small></span>' +
-          '<span class="ctl"><button data-bno="' + b.id + ':-1" aria-label="한 강 뒤로">−</button><button data-bno="' + b.id + ':1" aria-label="한 강 앞으로">+</button><button data-bmk="' + b.id + '">강 내용</button><button data-btog="' + b.id + '">' + (b.active ? '쉬기' : '켜기') + '</button><button data-bdel="' + b.id + '">삭제</button></span>' +
+        const th = X.thumbFor(b.course_url || '', b.cover_url || null);
+        return '<div class="bk' + (th ? ' th' : '') + '">' + (th ? '<img class="bk-th" src="' + esc(th) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '<span class="subj-chip" style="background:' + S[b.subject].col + '">' + S[b.subject].emoji + ' ' + S[b.subject].short + '</span><span class="t"><b>' + esc(b.title) + (b.active ? '' : ' (쉬는 중)') + '</b><small class="num">지금 ' + Math.min(b.current_no, b.total) + '강 / 전체 ' + b.total + '강' + (b.current_no > b.total ? ' · 다 끝났어요 🎉' : '') + (b.course_url ? ' · <a href="' + esc(b.course_url) + '" target="_blank">EBS 강좌</a>' : '') + '</small></span>' +
+          '<span class="ctl"><button data-bno="' + b.id + ':-1" aria-label="한 강 뒤로">−</button><button data-bno="' + b.id + ':1" aria-label="한 강 앞으로">+</button><button data-bmk="' + b.id + '">강 내용</button><button data-bcov="' + b.id + '">표지</button><button data-btog="' + b.id + '">' + (b.active ? '쉬기' : '켜기') + '</button><button data-bdel="' + b.id + '">삭제</button></span>' +
           '<span class="prog"><i style="width:' + pct + '%"></i></span></div>'; }).join('') || '<div class="empty" style="padding:20px">아직 등록한 교재가 없어요. 교재가 없는 과목은 기본 콘텐츠로 진도가 나가요.</div>') + '</div>' +
       '<form class="form" id="bookForm" style="margin-top:14px"><div class="f3"><label>과목<select id="bs">' + ORDER.map(s => '<option value="' + s + '">' + S[s].name + '</option>').join('') + '</select></label><label>교재 이름<input id="bt" placeholder="예: 만점왕 수학 4-2"></label><label>전체 강 수<input id="bn" type="number" min="1" max="300" value="40"></label></div>' +
-      '<div class="f2"><label>EBS 강좌 주소 <small>강 목록이 있는 페이지</small><input id="bu" placeholder="https://primary.ebs.co.kr/course/view?courseId=..."></label><label>시작할 강<input id="bc" type="number" min="1" value="1"></label></div><div class="err" id="bErr"></div><div class="row end" style="margin-top:0"><button class="btn small" type="submit">교재 등록</button></div></form></div>';
+      '<div class="f3"><label>EBS 강좌 주소 <small>강 목록이 있는 페이지</small><input id="bu" placeholder="https://primary.ebs.co.kr/course/view?courseId=..."></label><label>표지 이미지 주소 <small>비워도 돼요</small><input id="bcv" placeholder="https://… .jpg"></label><label>시작할 강<input id="bc" type="number" min="1" value="1"></label></div>' +
+      '<p class="desc" style="margin:2px 0 8px;font-size:13px">💡 표지: 교재·강좌 이미지를 길게 눌러 「이미지 주소 복사」 → 붙여넣기. 비워 두면 EBS 강좌 대표 이미지를 자동으로 써요.</p><div class="err" id="bErr"></div><div class="row end" style="margin-top:0"><button class="btn small" type="submit">교재 등록</button></div></form></div>';
   }
 
   /* ── 학습 만들기 (강 하나) ── */
@@ -316,6 +323,8 @@
         await reload('plans'); X.toast('편성을 복사했어요'); return; }
       if (d.bno) { const [id, dlt] = d.bno.split(':'); const b = st.books.find(x => x.id === id); const n = Math.max(1, Math.min(b.total + 1, b.current_no + +dlt)); await q(db.from('edu_books').update({ current_no: n }).eq('id', id)); await reload('books'); return; }
       if (d.btog) { const b = st.books.find(x => x.id === d.btog); await q(db.from('edu_books').update({ active: !b.active }).eq('id', b.id)); await reload('books'); return; }
+      if (d.bcov) { const b = st.books.find(x => x.id === d.bcov); const v = prompt('「' + b.title + '」 표지 이미지 주소 (https://…)\n비우고 확인하면 EBS 강좌 대표 이미지를 써요', b.cover_url || ''); if (v === null) return; const u = v.trim();
+        if (u && !/^https:\/\//.test(u)) { X.toast('주소는 https:// 로 시작해야 해요'); return; } await q(db.from('edu_books').update({ cover_url: u || null }).eq('id', b.id)); await reload('books'); X.toast('표지를 바꿨어요'); return; }
       if (d.bdel) { const b = st.books.find(x => x.id === d.bdel); if (!confirm('「' + b.title + '」 교재와 강별 내용을 지울까요? (아이 기록은 남아요)')) return; await q(db.from('edu_books').delete().eq('id', b.id)); await reload('books'); return; }
       if (d.bmk) { st.mk = { book: d.bmk, no: null }; render(); $('#make').scrollIntoView({ behavior: 'smooth' }); return; }
       if (d.clr) { await q(db.from('edu_review').update({ cleared_at: new Date().toISOString() }).eq('id', d.clr)); st.review = st.review.filter(r => String(r.id) !== d.clr); render(); return; }
@@ -362,9 +371,10 @@
       }
       if (f.id === 'bookForm') {
         const err = $('#bErr'); err.textContent = '';
-        const rec = { kid_id: st.kidSel, subject: $('#bs').value, title: $('#bt').value.trim(), total: +$('#bn').value || 20, current_no: Math.max(1, +$('#bc').value || 1), course_url: $('#bu').value.trim() || null };
+        const rec = { kid_id: st.kidSel, subject: $('#bs').value, title: $('#bt').value.trim(), total: +$('#bn').value || 20, current_no: Math.max(1, +$('#bc').value || 1), course_url: $('#bu').value.trim() || null, cover_url: $('#bcv').value.trim() || null };
         if (!rec.title) { err.textContent = '교재 이름을 적어 주세요.'; return; }
         if (rec.course_url && !/^https?:\/\//.test(rec.course_url)) { err.textContent = '주소는 https:// 로 시작해야 해요.'; return; }
+        if (rec.cover_url && !/^https:\/\//.test(rec.cover_url)) { err.textContent = '표지 주소는 https:// 로 시작해야 해요.'; return; }
         if (bookOf(st.kidSel, rec.subject)) { if (!confirm('이 과목에 쓰는 교재가 이미 있어요. 기존 교재는 쉬게 하고 새 교재로 진도를 나갈까요?')) return; await q(db.from('edu_books').update({ active: false }).eq('kid_id', st.kidSel).eq('subject', rec.subject)); }
         await q(db.from('edu_books').insert(rec));
         if (!mainPlan(st.kidSel, rec.subject)) await q(db.from('edu_plan').insert({ kid_id: st.kidSel, kind: rec.subject === 'calc' ? 'drill' : 'lesson', subject: rec.subject, weekdays: [1, 2, 3, 4, 5], ref: rec.subject === 'calc' ? 'auto' : 'next', payload: {}, sort: 40 }));
