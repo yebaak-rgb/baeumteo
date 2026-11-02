@@ -485,3 +485,7 @@ details.lib summary{cursor:pointer;font-weight:800;font-size:18px;color:var(--he
 .tk-edit .inp{flex:1 1 220px;min-width:0;height:42px}
 .tk-edit .inp.n{flex:0 1 160px}.tk-edit .inp.d{flex:0 0 auto;width:auto}
 .tk-edit .btn{white-space:nowrap}
+/* 칭찬 도장 안내 (체크리스트 다 하면 1개, 금~일은 묶음) */
+.side-checks .stampnote{font-size:13px;font-weight:700;color:var(--brand-ink);background:var(--pill);border-radius:10px;padding:7px 10px}
+.side-checks .stampnote.got{color:var(--stamp);background:#fff1f1}
+.day .dot .cnt{font-size:12px;color:var(--muted);font-weight:700}

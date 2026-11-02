@@ -111,7 +111,7 @@
   /* ── 체크리스트 ── */
   function cardTasks(k) {
     const tasks = st.plans.filter(p => p.kid_id === k.id && p.kind === 'task' && (!p.on_date || p.on_date >= today) && !(p.payload && p.payload.by_kid && p.on_date < today));
-    return '<div class="card"><h3>' + esc(k.emoji + ' ' + k.name) + ' 체크리스트 <small style="font-weight:500;color:var(--muted);font-size:13px">학원·숙제·문제집</small></h3><p class="desc">' + esc(k.name) + '에게만 보이는 할 일이에요. 다른 아이는 맨 위 이름 버튼을 눌러 바꿔요. 요일을 누르면 바로 켜고 꺼져요. 아이가 직접 추가한 숙제도 여기 보여요.</p><div class="tasks">' +
+    return '<div class="card"><h3>' + esc(k.emoji + ' ' + k.name) + ' 체크리스트 <small style="font-weight:500;color:var(--muted);font-size:13px">학원·숙제·문제집</small></h3><p class="desc">' + esc(k.name) + '에게만 보이는 할 일이에요. 다른 아이는 맨 위 이름 버튼을 눌러 바꿔요. 요일을 누르면 바로 켜고 꺼져요. 아이가 직접 추가한 숙제도 여기 보여요. <b>금·토·일은 3일 묶음</b>이라 셋 중 하루만 체크하면 되고, 그날(주말은 묶음) 체크리스트를 다 하면 칭찬 도장이 1개 찍혀요.</p><div class="tasks">' +
       (tasks.map(p => st.editTask === p.id ?
         // 수정 중인 줄: 할 일·메모(·날짜)를 바로 고쳐요
         '<form class="tk tk-edit" data-tedit="' + p.id + '"><input class="inp" name="t" maxlength="60" value="' + esc(p.title || '') + '" aria-label="할 일"><input class="inp n" name="n" maxlength="20" value="' + esc((p.payload && p.payload.note) || '') + '" placeholder="메모 (선택)" aria-label="메모">' +
@@ -248,8 +248,9 @@
       const w = weekStat(k), agg = {};
       st.logs.filter(l => l.kid_id === k.id && l.status === 'done' && l.total).forEach(l => { const s = l.subject; agg[s] = agg[s] || { a: 0, b: 0 }; agg[s].a += l.score || 0; agg[s].b += l.total; });
       const bars = ORDER.map(s => { const g = agg[s], v = g && g.b ? Math.round(g.a / g.b * 100) : null; return '<div class="bar"><span>' + S[s].name + '</span><span class="tr"><span class="fl" style="width:' + (v || 0) + '%;background:' + S[s].col + '"></span></span><span class="v num">' + (v == null ? '–' : v + '%') + '</span></div>'; }).join('');
-      const tl = st.plans.filter(p => p.kid_id === k.id && appliesOn(p, today)).map(p => {
-        const lg = st.logs.filter(l => l.plan_id === p.id && l.day === today), d = lg.find(l => l.status === 'done'), sj = S[p.kind === 'task' ? 'etc' : p.kind === 'drill' ? 'calc' : p.subject] || S.link;
+      const U = X.unitOf(today), inUnit = p => p.active && (p.on_date ? p.on_date >= U.from && p.on_date <= U.to : (p.weekdays || []).some(w => U.dows.includes(w)));
+      const tl = st.plans.filter(p => p.kid_id === k.id && (p.kind === 'task' ? inUnit(p) : appliesOn(p, today))).map(p => {
+        const lg = st.logs.filter(l => l.plan_id === p.id && (p.kind === 'task' ? l.day >= U.from && l.day <= U.to : l.day === today)), d = lg.find(l => l.status === 'done'), sj = S[p.kind === 'task' ? 'etc' : p.kind === 'drill' ? 'calc' : p.subject] || S.link;
         return '<div>' + sj.emoji + ' <span>' + esc(d && d.detail && d.detail.title ? d.detail.title : (p.title || sj.name)) + '</span><span class="st" style="color:' + (d ? 'var(--ok)' : lg.some(l => l.status === 'watched') ? 'var(--brand)' : 'var(--faint)') + '">' + (d ? '✓ ' + (d.total ? d.score + '/' + d.total : '완료') : lg.some(l => l.status === 'watched') ? '강의 봄' : '아직') + '</span></div>';
       }).join('');
       return '<div class="kid"><div class="kid-h"><span class="avatar" style="background:' + esc(k.color) + '22">' + esc(k.emoji) + '</span><b>' + esc(k.name) + '</b><span class="num" style="color:var(--muted);font-size:13px">' + X.gradeOf(k) + '학년</span>' +

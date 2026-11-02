@@ -32,7 +32,7 @@
   }
   const P = () => ({ p_code: st.code, p_kid: st.kid.id });
   function log(o) {
-    return rpc('edu_kid_log', Object.assign(P(), { p_day: st.day, p_plan: o.plan || null, p_item_key: o.key || null, p_subject: o.subject || null, p_kind: o.kind || null,
+    return rpc('edu_kid_log', Object.assign(P(), { p_day: o.day || st.day, p_plan: o.plan || null, p_item_key: o.key || null, p_subject: o.subject || null, p_kind: o.kind || null,
       p_status: o.status, p_score: o.score == null ? null : o.score, p_total: o.total == null ? null : o.total, p_detail: o.detail || {} }))
       .catch(e => { if (e.message !== 'bad_code') X.toast('저장하지 못했어요. 인터넷을 확인해 주세요'); });
   }
@@ -74,7 +74,23 @@
     (st.data.materials || []).forEach(m => { if (m.body && m.body.lib_id) st.over[m.body.lib_id] = m; else st.mats[m.id] = m; });
     st.books = st.data.books || [];
     buildItems();
+    await syncStamp();
   }
+
+  /* ── 칭찬 도장: 체크리스트(월~목은 그날, 금~일은 3일 묶음)를 다 체크하면 1개 ── */
+  async function syncStamp() {
+    const u = X.unitOf(st.day), key = 'STAMP:' + u.from, logs = st.data.logs || (st.data.logs = []);
+    const tasks = st.items.filter(i => i.kind === 'task'), all = tasks.length > 0 && tasks.every(t => t.done);
+    const have = logs.find(l => l.item_key === key && l.status === 'done');
+    if (have && !all) { // 체크를 풀었거나 새 할 일이 생기면 도장도 잠시 빼요
+      const r = await log({ key, kind: 'stamp', status: 'undone', day: have.day });
+      if (r && r.ok) { logs.splice(logs.indexOf(have), 1); st.data.stamps = Math.max(0, (st.data.stamps || 0) - 1); markWeek(have.day, false); }
+    } else if (!have && all) {
+      const r = await log({ key, subject: 'etc', kind: 'stamp', status: 'done', detail: { title: '칭찬 도장' + (u.weekend ? ' (주말)' : '') } });
+      if (r && r.ok) { logs.push({ item_key: key, status: 'done', kind: 'stamp', day: st.day }); st.data.stamps = (st.data.stamps || 0) + 1; markWeek(st.day, true); st.newStamp = true; X.toast(u.weekend ? '주말 체크리스트 끝! 칭찬 도장 1개 🏅' : '체크리스트 끝! 칭찬 도장 1개 🏅'); }
+    }
+  }
+  function markWeek(day, on) { const w = (st.data.week = st.data.week || []), x = w.find(v => v.day === day); if (x) x.s = on; else if (on) w.push({ day, n: 0, s: true }); }
 
   /* ── 오늘 할 일 만들기 ── */
   function buildItems() {
@@ -209,10 +225,12 @@
   }
   function sideChecks() {
     const tasks = st.items.filter(i => i.kind === 'task'), dn = tasks.filter(t => t.done).length;
-    return '<div class="stampboard side-checks"><div class="row between" style="align-items:baseline"><h3>오늘의 체크리스트</h3><span class="num" style="font-weight:800;color:' + (tasks.length && dn === tasks.length ? 'var(--ok)' : 'var(--brand)') + '">' + dn + ' / ' + tasks.length + '</span></div>' +
-      '<div class="streak">학원·학교 숙제, 문제집도 끝나면 체크!</div><div class="checks">' +
+    const u = X.unitOf(st.day), wk = u.weekend, f = X.parseYmd(u.from), e = X.parseYmd(u.to), got = (st.data.logs || []).some(l => l.item_key === 'STAMP:' + u.from && l.status === 'done');
+    return '<div class="stampboard side-checks"><div class="row between" style="align-items:baseline"><h3>' + (wk ? '주말 체크리스트' : '오늘의 체크리스트') + '</h3><span class="num" style="font-weight:800;color:' + (tasks.length && dn === tasks.length ? 'var(--ok)' : 'var(--brand)') + '">' + dn + ' / ' + tasks.length + '</span></div>' +
+      '<div class="streak">' + (wk ? '금·토·일 3일 동안 하면 돼요 (' + (f.getMonth() + 1) + '/' + f.getDate() + '~' + (e.getMonth() + 1) + '/' + e.getDate() + ')' : '학원·학교 숙제, 문제집도 끝나면 체크!') + '</div>' +
+      (tasks.length ? '<div class="stampnote' + (got ? ' got' : '') + '">' + (got ? '🏅 칭찬 도장 받았어요!' : '🏅 다 체크하면 칭찬 도장 1개' + (wk ? ' (주말에 1개)' : '')) + '</div>' : '') + '<div class="checks">' +
       tasks.map(it => '<div class="chk' + (it.done ? ' on' : '') + '"><button class="box" data-chk="' + st.items.indexOf(it) + '" aria-label="체크">' + (it.done ? '✓' : '') + '</button><span class="t">' + esc(it.title) + '</span>' + (it.payload.note ? '<span class="who">' + esc(it.payload.note) + '</span>' : '') + (it.byKid ? '<button class="x" data-deltask="' + it.plan + '" aria-label="지우기">✕</button>' : '') + '</div>').join('') +
-      (tasks.length ? '' : '<div class="chk"><span class="t" style="color:var(--muted);font-weight:500">오늘 체크할 일이 없어요</span></div>') + '</div>' +
+      (tasks.length ? '' : '<div class="chk"><span class="t" style="color:var(--muted);font-weight:500">' + (wk ? '주말에 체크할 일이 없어요' : '오늘 체크할 일이 없어요') + '</span></div>') + '</div>' +
       '<div class="addrow"><input id="newtask" maxlength="60" placeholder="받아 온 숙제 적기"><button class="btn small" data-addtask>추가</button></div></div>';
   }
   function viewToday() {
@@ -221,11 +239,12 @@
     const segs = list.map(i => '<span class="seg" style="' + (i.done ? 'background:' + (S[i.subject] || S.link).col : '') + '"></span>').join('');
     // 이번 주 도장판 (월~일)
     const d0 = X.parseYmd(st.day), dow = d0.getDay(), mon = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() - (dow === 0 ? 6 : dow - 1));
-    const wk = {}; (st.data.week || []).forEach(w => wk[w.day] = w.n);
+    const wk = {}, ws = {}; (st.data.week || []).forEach(w => { wk[w.day] = w.n; if (w.s) ws[w.day] = 1; });
     let streak = 0; for (let i = 0; i < 30; i++) { const dd = X.ymd(new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() - i)); if (wk[dd]) streak++; else if (i > 0 || !allDone) { if (i === 0) continue; break; } }
     const days = ['월', '화', '수', '목', '금', '토', '일'].map((n, i) => {
       const dd = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i), key = X.ymd(dd), c = wk[key] || 0, isT = key === st.day;
-      return '<div class="day' + (c ? ' done' : '') + (isT ? ' today' : '') + '"><span class="dot">' + (c ? stampSvg('', c >= 4 ? '참|잘했어요' : '잘|했어요') : (isT ? '오늘' : '')) + '</span><span class="num">' + n + ' ' + (dd.getMonth() + 1) + '/' + dd.getDate() + '</span></div>';
+      const s = ws[key];
+      return '<div class="day' + (s ? ' done' : '') + (isT ? ' today' : '') + '"><span class="dot">' + (s ? stampSvg('', '참|잘했어요') : c ? '<span class="cnt num">' + c + '개</span>' : (isT ? '오늘' : '')) + '</span><span class="num">' + n + ' ' + (dd.getMonth() + 1) + '/' + dd.getDate() + '</span></div>';
     }).join('');
     const goal = st.family.reward_goal || 30, stamps = st.data.stamps || 0;
     // 왼쪽: 배너 + 오늘 할 일 카드(작게) / 오른쪽: 체크리스트(길어지면 아래로 쭉)
@@ -242,7 +261,7 @@
     let h = '<div class="section"><div class="wrap"><div class="home-grid"><div class="home-main">' +
       '<div class="today-banner">' + stars(30) + '<div style="min-width:0"><span class="eyebrow">오늘의 학습</span>' +
       '<h1>' + esc(k.name) + ', ' + (allDone ? '오늘 학습 끝! 정말 멋져요' : list.length ? '오늘은 ' + list.length + '과목이에요' : '오늘은 쉬는 날이에요') + '</h1>' +
-      '<p>' + (allDone ? '내일도 이렇게 차근차근 해 봐요.' : list.length ? '다 끝내면 도장판에 도장이 쾅! 찍혀요.' : '과목별 공부에서 하고 싶은 걸 골라도 좋아요.') + (mins ? ' <span class="num" style="opacity:.75">· 약 ' + mins + '분</span>' : '') + '</p>' +
+      '<p>' + (allDone ? '내일도 이렇게 차근차근 해 봐요.' : list.length ? '체크리스트를 다 체크하면 칭찬 도장이 쾅! 찍혀요.' : '과목별 공부에서 하고 싶은 걸 골라도 좋아요.') + (mins ? ' <span class="num" style="opacity:.75">· 약 ' + mins + '분</span>' : '') + '</p>' +
       '<div class="segs">' + segs + '</div>' +
       (next ? '<button class="btn" data-open="' + st.items.indexOf(next) + '">' + (doneN ? '이어서 하기' : '시작하기') + ' · ' + esc((S[next.subject] || S.link).name) + ' →</button>' : '<button class="btn ghost" data-go="notes">오답노트 다시 풀기</button>') +
       '</div>' + heroArt() + '</div>' +
@@ -487,6 +506,7 @@
     const now = X.parseYmd(st.day), y = now.getFullYear(), m = now.getMonth(), first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
     let rows = []; try { rows = await rpc('edu_kid_history', Object.assign(P(), { p_from: X.ymd(first), p_to: X.ymd(last) })) || []; } catch (e) { }
     const el = $('#room'); if (!el) return;
+    const stampDay = {}; rows.filter(r => r.kind === 'stamp').forEach(r => stampDay[r.day] = 1); rows = rows.filter(r => r.kind !== 'stamp');
     const byDay = {}, bySub = {}; rows.forEach(r => { byDay[r.day] = (byDay[r.day] || 0) + 1; const k = r.kind === 'task' ? 'etc' : (r.subject || 'etc'); bySub[k] = (bySub[k] || 0) + 1; });
     const goal = st.family.reward_goal || 30, stamps = st.data.stamps || 0;
     let h = '<div class="sec-head"><h2>' + esc(st.kid.name) + '의 공부방</h2><span style="color:var(--muted)">' + (m + 1) + '월 기록</span></div><div class="g2">' +
@@ -495,7 +515,7 @@
       '<div class="sec-head" style="margin-top:24px"><h2>과목별로 끝낸 것</h2></div><div class="statrow">' + ORDER.map(k => '<div class="stat"><div class="e">' + S[k].emoji + '</div><b>' + (bySub[k] || 0) + '</b><small>' + S[k].short + '</small></div>').join('') + '</div>' +
       '<div class="sec-head" style="margin-top:24px"><h2>' + (m + 1) + '월 도장 달력</h2></div><div class="card"><div class="cal">' + X.WD.map(w => '<div class="wd">' + w + '</div>').join('');
     for (let i = 0; i < first.getDay(); i++) h += '<div></div>';
-    for (let d = 1; d <= last.getDate(); d++) { const key = X.ymd(new Date(y, m, d)), c = byDay[key] || 0; h += '<div class="d' + (key === st.day ? ' today' : '') + '"><span>' + d + '</span>' + (c ? '<span class="s">' + (c >= 4 ? '🌟' : '⭐') + '</span><span class="c">' + c + '</span>' : '') + '</div>'; }
+    for (let d = 1; d <= last.getDate(); d++) { const key = X.ymd(new Date(y, m, d)), c = byDay[key] || 0; h += '<div class="d' + (key === st.day ? ' today' : '') + '"><span>' + d + '</span>' + (stampDay[key] ? '<span class="s">🏅</span>' : c ? '<span class="s">⭐</span>' : '') + (c ? '<span class="c">' + c + '</span>' : '') + '</div>'; }
     el.innerHTML = h + '</div></div>';
   }
 
@@ -523,7 +543,7 @@
     if (d.submit != null) { const q = L.questions[L.qi]; answer(q.type === 'qr' ? [$('#ansin').value.trim(), $('#ansin2').value.trim()] : $('#ansin').value.trim()); return; }
     if (t.id === 'qNext') { nextQ(); return; }
     if (t.id === 'toResult') { finish(); return; }
-    if (d.chk) { const it = st.items[+d.chk]; it.done = !it.done; t.closest('.chk').classList.toggle('on', it.done); t.textContent = it.done ? '✓' : ''; await log({ plan: it.plan, key: 'TASK:' + it.plan, subject: 'etc', kind: 'task', status: it.done ? 'done' : 'undone', detail: { title: it.title } }); if (it.done) X.toast('잘했어요! 도장 하나 꾹 🏅'); await loadDay(); return; }
+    if (d.chk) { const it = st.items[+d.chk]; it.done = !it.done; t.closest('.chk').classList.toggle('on', it.done); t.textContent = it.done ? '✓' : ''; const was = it.doneLog; await log({ plan: it.plan, key: 'TASK:' + it.plan, subject: 'etc', kind: 'task', status: it.done ? 'done' : 'undone', day: !it.done && was ? was.day : null, detail: { title: it.title } }); st.newStamp = false; await loadDay(); if (!st.newStamp && it.done) X.toast('잘했어요! ✓'); const sy = window.scrollY; go('today', 'replace'); window.scrollTo(0, sy); return; }
     if (d.deltask) { await rpc('edu_kid_task', Object.assign(P(), { p_day: st.day, p_action: 'delete', p_title: null, p_plan: d.deltask })); await loadDay(); go('today'); return; }
     if (d.addtask != null) { const v = $('#newtask').value.trim(); if (!v) return; t.disabled = true; await rpc('edu_kid_task', Object.assign(P(), { p_day: st.day, p_action: 'add', p_title: v, p_plan: null })); await loadDay(); go('today'); X.toast('체크리스트에 넣었어요'); return; }
     if (d.nans) { const [i, k] = d.nans.split('-').map(Number), r = st.data.review[i]; if (k === r.q.answer) clearReview(i); else { t.classList.add('wrong'); t.disabled = true; X.toast('한 번 더 생각해 봐요'); } return; }

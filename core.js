@@ -27,6 +27,12 @@
     const off = (kid.levels && Number(kid.levels[subject])) || 0;
     return Math.min(6, Math.max(1, gradeOf(kid, d) + off));
   }
+  // 체크리스트 묶음: 월~목은 하루, 금·토·일은 금요일부터 일요일까지 하나
+  function unitOf(day) {
+    const d = typeof day === 'string' ? parseYmd(day) : day, w = d.getDay();
+    if (w === 5 || w === 6 || w === 0) { const f = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((w + 2) % 7)); return { from: ymd(f), to: ymd(new Date(f.getFullYear(), f.getMonth(), f.getDate() + 2)), dows: [5, 6, 0], weekend: true }; }
+    return { from: ymd(d), to: ymd(d), dows: [w], weekend: false };
+  }
   function fmtDate(s) { const d = parseYmd(s); return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + WD[d.getDay()] + '요일'; }
 
   /* ── 시드 난수 (같은 날 같은 문제) ── */
@@ -269,7 +275,7 @@
   }
   function ytEmbed(url) { const id = ytId(url); return id ? 'https://www.youtube.com/embed/' + id + '?rel=0&modestbranding=1&playsinline=1' : null; }
 
-  window.EDU = { SUBJECTS, SUBJECT_ORDER, WD, ymd, parseYmd, schoolYear, semester, gradeOf, levelOf, fmtDate, rng, shuffle,
+  window.EDU = { SUBJECTS, SUBJECT_ORDER, WD, ymd, parseYmd, schoolYear, semester, gradeOf, levelOf, fmtDate, unitOf, rng, shuffle,
     F, fstr, parseNum, sameNum, check, answerText, CALC, CALC_MAP, calcTopicsFor, autoCalcTopic, makeCalc,
     LIB, LIB_MAP, libList, nextItem, EBS, ebsFor, thumbFor, ytId, ytEmbed, speak, esc, fracHtml, toast, store, sb };
 })();
